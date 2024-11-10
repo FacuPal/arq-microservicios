@@ -1,7 +1,8 @@
 # Microservicio de envíos :mailbox:
 ---
 ## Diagrama de Estados.
-::: mermaid
+
+```mermaid
 graph TD;
     PENDING-->TRANSIT;
 	TRANSIT-->TRANSIT
@@ -9,9 +10,8 @@ graph TD;
 	TRANSIT-->DELIVERED;
     DELIVERED-->PENDING_RETURN;
     PENDING_RETURN-->RETURNED;
-:::
----
-> :warning: **Warning:** Do not push the big red button.
+```
+
 ---
 ## Casos de uso
 
