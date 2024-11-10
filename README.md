@@ -12,7 +12,7 @@ graph TD;
     PENDING_RETURN-->RETURNED;
 ```
 
-```
+```mermaid
 sequenceDiagram
     participant Alice
     participant Bob

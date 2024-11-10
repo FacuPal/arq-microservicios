@@ -6,7 +6,6 @@
         "vscode": {
             "settings": {},
             "extensions": [
-                "sonarsource.sonarlint-vscode",
                 "bierner.markdown-preview-github-styles",
                 "bierner.markdown-mermaid",
                 "oderwat.indent-rainbow",
