@@ -1,7 +1,7 @@
-# Microservicio de envíos :mailbox:
+# :mailbox: Microservicio de envíos :mailbox:
 ---
-## Diagrama de Estados.
 
+## Diagrama de Estados de Envíos.
 ```mermaid
 graph TD;
     PENDING-->TRANSIT;
