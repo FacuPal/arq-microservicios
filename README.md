@@ -93,7 +93,6 @@ graph TD;
 - deliveryId
 - eventType
 - lastKnownLocation
-- userId
 - creationDate
 - updateDate
 
@@ -103,7 +102,7 @@ graph TD;
 - trackingNumber
 - orderId
 - userId
-- tracking_events:
+- tracking_events[]:
   - updateDate
   - locationName
   - status
@@ -146,6 +145,37 @@ trackingNumber
 ```
 
 `404 NOT FOUND` si no existe el Envío con el trackingNumber enviado
+
+
+#### Creating new/overwriting existing stubs & proxy configs
+
+<details>
+ <summary><code>POST</code> <code><b>/</b></code> <code>(overwrites all in-memory stub and/or proxy-config)</code></summary>
+
+##### Parameters
+
+> | name      |  type     | data type               | description                                                           |
+> |-----------|-----------|-------------------------|-----------------------------------------------------------------------|
+> | None      |  required | object (JSON or YAML)   | N/A  |
+
+
+##### Responses
+
+> | http code     | content-type                      | response                                                            |
+> |---------------|-----------------------------------|---------------------------------------------------------------------|
+> | `201`         | `text/plain;charset=UTF-8`        | `Configuration created successfully`                                |
+> | `400`         | `application/json`                | `{"code":"400","message":"Bad Request"}`                            |
+> | `405`         | `text/html;charset=utf-8`         | None                                                                |
+
+##### Example cURL
+
+> ```javascript
+>  curl -X POST -H "Content-Type: application/json" --data @post.json http://localhost:8889/
+> ```
+
+</details>
+
+------------------------------------------------------------------------------------------
 
 
 ### Interfaz asincronica (rabbit)
