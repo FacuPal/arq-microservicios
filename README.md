@@ -35,7 +35,7 @@ graph TD;
 > - **Precondicion**: El usuario debe estar logueado.
 > - **Camino normal**:
 >	1.  Se recibe un request por interfaz REST indicando la ubicación en la que se encuentra el envío y un parámetro booleano que indica si se entregó el envío al destinatario.
->	2. Se valida que el envío exista y se recalcula la proyección del mismo, validando también que se encuentre en estado **"PENDING**", **"TRANSIT"** o **"PENDING_RETURN"**.
+>	2. Se valida que el envío exista y se recalcula la proyección del mismo, validando también que se encuentre en estado **"PENDING**", **"TRANSIT"** o **"PENDING_RETURN"**. Se guarda la proyección en la tabla *delivery_projection*, sobreescribiendola si existiera.
 >	3. Se registra el nuevo evento guardando la última ubicación conocida y cambiando el estado según: 
 >    	- Si no se está entregando al destinatario y:
 >       	- Si el estado era **"PENDING"**, se lo pasa a **"TRANSIT"**.
@@ -70,7 +70,7 @@ graph TD;
 > - **Camino normal**:
 >	1. Se recibe un request por interfaz REST indicando la intención de cancelar un envío, utilizando el trackingNumber.
 >	2. Se valida que el envío exista y le corresponda al usuario logueado. 
->   3. Se recalcula la proyección del mismo y se valida que se encuentre en estado **"TRANSIT"**.
+>   3. Se recalcula la proyección del mismo y se valida que se encuentre en estado **"TRANSIT"**. Se guarda la proyección en la tabla *delivery_projection*, sobreescribiendola si existiera.
 >	4. Se registra el nuevo evento cambiando el estado a **"CANCELED"**.
 >	5. Se envía un mensaje por medio del exchange directo ***"send_notification"***, con tipo *delivery_canceled*, para que el servicio de notification realice la notificación.
 > - **Caminos alternativos**:
@@ -83,12 +83,12 @@ graph TD;
 > - **Camino normal**:
 >	1. Se recibe un request por interfaz REST indicando la intención de devolver un envío utilizando el trackingNumber.
 >	2. Se valida que el envío exista y le corresponda al usuario logueado.
->   3. Se recalcula la proyección del mismo y se valida que se encuentre en estado **"DELIVERED"**.
+>   3. Se recalcula la proyección del mismo y se valida que se encuentre en estado **"DELIVERED"**. Se guarda la proyección en la tabla *delivery_projection*, sobreescribiendola si existiera.
 >	4. Se registra el nuevo evento cambiando el estado a **"PENDING_RETURN"**.
 >	5. Se envía un mensaje por medio del exchange directo ***"send_notification"***, con tipo *delivery_pending_return*, para que el servicio de notification realice la notificación.
 > - **Caminos alternativos**:
 > 	- Si el envío no existe o no le pertenece al usuario, se retorna error.
-> 	- Si la proyección del envío no está en estado **DELIVERED"**, se retorna error.
+> 	- Si la proyección del envío no está en estado **"DELIVERED"**, se retorna error.
 ---
 >### CU-006: Calcular la proyección del envío.
 > ---
@@ -98,11 +98,12 @@ graph TD;
 >   2. Se busca la orderId correspondiente al trackingNumber, validando que haya un único orderId para ese trackingNumber.
 >   3. Se buscan todos los eventos que tengan el orderId indicado y se ordenan de menor fecha a mayor.
 >	4. Se aplican uno a uno los eventos, de menor fecha a mayor, a la proyección, validando que la transición de estados respete el diagrama de estado.
->   5. Se guarda la proyección realizada en la tabla *delivery_projection*.
+>   5. Se guarda la proyección realizada en la tabla *delivery_projection*, sobreescribiendo el registro si existiera.
+>	6. Se retorna la proyección calculada.
 > - **Caminos alternativos**:
-> 	- Si existen  varias orderId para el mismo trackingNumber, se agrega un registro a la tabla *failed_delivery_proyection* con el trackingNumber, el mensaje "Existen varios orderId para el mismo trackingNumber", y se agregan a trackingEvents todos los eventos con el trackingNumber.
+> 	- Si existen  varias orderId para el mismo trackingNumber, se agrega un registro a la tabla *failed_delivery_proyection* con el trackingNumber, el mensaje "Existen varios orderId para el mismo trackingNumber", y se agregan a trackingEvents todos los eventos con el trackingNumber. Se retorna error indicando el anterior mensaje.
 >   - Si existen varios eventos de creación de envíos con el mismo orderId pero distintos trackingNumber, se toma el trackingNumber más reciente.
-> 	- Si existe una inconsistencia en la transición de un estado, se agrega un registro a la tabla *failed_delivery_proyection* con el trackingNumber, el orderId, el mensaje "Hay una transición inconsistente. No se puede pasar del estado ${Origen} al estado ${Destino}", y se agregan a trackingEvents todos los eventos con el mismo orderId.
+> 	- Si existe una inconsistencia en la transición de un estado, se agrega un registro a la tabla *failed_delivery_proyection* con el trackingNumber, el orderId, el mensaje "Hay una transición inconsistente. No se puede pasar del estado ${Origen} al estado ${Destino}", y se agregan a trackingEvents todos los eventos con el mismo orderId. Se retorna error indicando el anterior mensaje.
 
 ---
 ## Modelo de datos
@@ -146,7 +147,62 @@ graph TD;
 | updateDate        | Date      |  fecha de actualización del evento                        |
 
 
-### Interfaz REST
+--------
+--------
+
+## Interfaz REST
+
+#### Obtener ubicación del envío
+
+<details>
+ <summary><code>GET</code> <code><b>/v1/delivery/{trackingNumber}</b></code> <code>Obtiene la ubicación del envío</code></summary>
+
+##### Headers
+
+> | name      			|  type     | data type               	| description                                                           |
+> |---------------------|-----------|---------------------------|-----------------------------------------------------------------------|
+> | Authorization      	|  required | Bearer {token}   			|  Bearer token |
+
+##### Uri Params
+
+> | name      			|  type     | data type               | description                                                           |
+> |---------------------|-----------|-------------------------|-----------------------------------------------------------------------|
+> | trackingNumber      |  required | string    			  |  Tracking number  |
+
+##### Responses
+
+> | http code     | content-type        | response                                                            |
+> |---------------|---------------------|---------------------------------------------------------------------|
+> | `200`         | `application/json`	| `{"orderId":"1234", "status": "TRANSIT", "lastKnowLocation": "Agencia 1", "deliveryEvents": [{ "updateDate": "2024-11-10", "lastKnownLocation": "Agencia 1", "eventType": "TRANSIT"}]}`                               |
+> | `404`         | `application/json`	| `{"code":"404","message":"El envío solicitado no existe."}`                            |
+##### Example cURL
+
+> ```
+>  curl -X GET -H "Content-Type: application/json" -H "Authorization: Bearer 123asd" --data '{"orderId":"1234", "trackingNumber": "1234", "status": "TRANSIT", "lastKnowLocation": "Agencia 1", "deliveryEvents": [{ "updateDate": "2024-11-10", "lastKnownLocation": "Agencia 1", "eventType": "TRANSIT"}]}' http://localhost:3000/v1/delivery/{trackingNumber}
+> ```
+
+##### Response
+> Status Code: `200 OK`
+>```json
+>{
+>	"orderId":"1234", 
+>	"trackingNumber": "1234",
+>	"status": "TRANSIT", 
+>	"lastKnowLocation": "Agencia 1", 
+>	"deliveryEvents": [{ 
+>		"updateDate": "2024-11-10", 
+>		"lastKnownLocation": "Agencia 1", 
+>		"eventType": "TRANSIT"
+>	}, { 
+>		"updateDate": "2024-11-09", 
+>		"lastKnownLocation": "Depósito", 
+>		"eventType": "PENDING"
+>	}] 
+>}
+>```
+
+</details>
+
 
 #### Actualizar ubicación del envío
 
@@ -180,8 +236,8 @@ graph TD;
 > | `404`         | `application/json`                | `{"code":"404","message":"El envío solicitado no existe."}`                            |
 ##### Example cURL
 
-> ```javascript
->  curl -X PUT -H "Content-Type: application/json" --data '{ "lastKnownLocation": "Agencia 1", "delivered": false}' http://localhost:3000/v1/delivery/{trackingNumber}
+> ```
+>  curl -X PUT -H "Content-Type: application/json" -H "Authorization: Bearer 123asd" --data '{ "lastKnownLocation": "Agencia 1", "delivered": false}' http://localhost:3000/v1/delivery/{trackingNumber}
 > ```
 
 ##### Response
@@ -194,12 +250,146 @@ graph TD;
 
 </details>
 
-------------------------------------------------------------------------------------------
+
+#### Cancelar el envío
+
+<details>
+ <summary><code>DELETE</code> <code><b>/v1/delivery/{trackingNumber}</b></code> <code>Cancela el envío</code></summary>
+
+##### Headers
+
+> | name      |  type     | data type               | description                                                           |
+> |-----------|-----------|-------------------------|-----------------------------------------------------------------------|
+> | Authorization      |  required | Bearer {token}   |  Bearer token |
+
+##### Uri Params
+
+> | name      |  type     | data type               | description                                                           |
+> |-----------|-----------|-------------------------|-----------------------------------------------------------------------|
+> | trackingNumber      |  required | string    |  Tracking number  |
+
+##### Responses
+
+> | http code     | content-type                      | response                                                            |
+> |---------------|-----------------------------------|---------------------------------------------------------------------|
+> | `200`         | `application/json`       | `{"message":"Envío cancelado exitósamente."}`                               |
+> | `404`         | `application/json`                | `{"code":"404","message":"El envío solicitado no existe."}`                            |
+##### Example cURL
+
+> ```
+>  curl -X DELETE -H "Content-Type: application/json" -H "Authorization: Bearer 123asd" http://localhost:3000/v1/delivery/{trackingNumber} 
+> ```
+
+##### Response
+> Status Code: `200 OK`
+>```json
+>{
+>	"message": "Envío cancelado exitósamente."
+>}
+>```
+
+</details>
 
 
-### Interfaz asincronica (rabbit)
+#### Solicitar devolución para el envío
 
-**Creación de un nuevo envío**
+<details>
+ <summary><code>POST</code> <code><b>/v1/delivery/{trackingNumber}/return</b></code> <code>Inicia el proceso de devolución del envío</code></summary>
+
+##### Headers
+
+> | name      |  type     | data type               | description                                                           |
+> |-----------|-----------|-------------------------|-----------------------------------------------------------------------|
+> | Authorization      |  required | Bearer {token}   |  Bearer token |
+
+##### Uri Params
+
+> | name      |  type     | data type               | description                                                           |
+> |-----------|-----------|-------------------------|-----------------------------------------------------------------------|
+> | trackingNumber      |  required | string    |  Tracking number  |
+
+##### Responses
+
+> | http code     | content-type                      | response                                                            |
+> |---------------|-----------------------------------|---------------------------------------------------------------------|
+> | `200`         | `application/json`       | `{"message":"Se inició el proceso de devolución existósamente."}`                               |
+> | `404`         | `application/json`                | `{"code":"404","message":"El envío solicitado no existe."}`                            |
+##### Example cURL
+
+> ```
+>  curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer 123asd" http://localhost:3000/v1/delivery/{trackingNumber}/return 
+> ```
+
+##### Response
+> Status Code: `200 OK`
+>```json
+>{
+>	"message": "Se inició el proceso de devolución existósamente."
+>}
+>```
+
+</details>
+
+#### Realizar la proyección para el envío
+
+<details>
+ <summary><code>POST</code> <code><b>/v1/delivery/{trackingNumber}/project</b></code> <code>Realiza la proyección para el envío</code></summary>
+
+##### Headers
+
+> | name      |  type     | data type               | description                                                           |
+> |-----------|-----------|-------------------------|-----------------------------------------------------------------------|
+> | Authorization      |  required | Bearer {token}   |  Bearer token |
+
+##### Uri Params
+
+> | name      |  type     | data type               | description                                                           |
+> |-----------|-----------|-------------------------|-----------------------------------------------------------------------|
+> | trackingNumber      |  required | string    |  Tracking number  |
+
+##### Responses
+
+> | http code     | content-type                      | response                                                            |
+> |---------------|-----------------------------------|---------------------------------------------------------------------|
+> | `200`         | `application/json`	| `{"orderId":"1234", "status": "TRANSIT", "lastKnowLocation": "Agencia 1", "deliveryEvents": [{ "updateDate": "2024-11-10", "lastKnownLocation": "Agencia 1", "eventType": "TRANSIT"}]}`                               |
+> | `404`         | `application/json`                | `{"code":"404","message":"El envío solicitado no existe."}`                            |
+> | `500`         | `application/json`                | `{"code":"500","message":"Existen varios orderId para el mismo trackingNumber."}`                            |
+
+
+##### Example cURL
+
+> ```
+>  curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer 123asd" --data '{"orderId":"1234", "trackingNumber": "1234", "status": "TRANSIT", "lastKnowLocation": "Agencia 1", "deliveryEvents": [{ "updateDate": "2024-11-10", "lastKnownLocation": "Agencia 1", "eventType": "TRANSIT"}]}' http://localhost:3000/v1/delivery/{trackingNumber}/project
+> ```
+
+##### Response
+> Status Code: `200 OK`
+>```json
+>{
+>	"orderId":"1234", 
+>	"trackingNumber": "1234",
+>	"status": "TRANSIT", 
+>	"lastKnowLocation": "Agencia 1", 
+>	"deliveryEvents": [{ 
+>		"updateDate": "2024-11-10", 
+>		"lastKnownLocation": "Agencia 1", 
+>		"eventType": "TRANSIT"
+>	}, { 
+>		"updateDate": "2024-11-09", 
+>		"lastKnownLocation": "Depósito", 
+>		"eventType": "PENDING"
+>	}] 
+>}
+>```
+
+</details>
+
+--------
+
+
+## Interfaz asincronica (rabbit)
+
+### **Creación de un nuevo envío**
 
 Recibe por medio del exchange direct `create_delivery` a través de la queue `delivery_create_delivery` 
 body
@@ -211,7 +401,7 @@ body
 }
 ```
 
-**Pedido de notificación**
+### **Pedido de notificación**
 
 Envía por medio del exchange direct `send_notification` a través de la queue `delivery_pending_return` 
 body
