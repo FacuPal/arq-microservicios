@@ -9,7 +9,9 @@ graph TD;
 	TRANSIT-->CANCELED
 	TRANSIT-->DELIVERED;
     DELIVERED-->PENDING_RETURN;
-    PENDING_RETURN-->RETURNED;
+    PENDING_RETURN-->TRANSIT_RETURN;
+    TRANSIT_RETURN-->TRANSIT_RETURN;
+    TRANSIT_RETURN-->RETURNED
 ```
 
 
@@ -35,15 +37,17 @@ graph TD;
 > - **Precondicion**: El usuario debe estar logueado.
 > - **Camino normal**:
 >	1.  Se recibe un request por interfaz REST indicando la ubicación en la que se encuentra el envío y un parámetro booleano que indica si se entregó el envío al destinatario.
->	2. Se valida que el envío exista y se recalcula la proyección del mismo, validando también que se encuentre en estado **"PENDING**", **"TRANSIT"** o **"PENDING_RETURN"**. Se guarda la proyección en la tabla *delivery_projection*, sobreescribiendola si existiera.
+>	2. Se valida que el envío exista y se recalcula la proyección del mismo, validando también que se encuentre en estado **"PENDING**", **"TRANSIT"**, **"PENDING_RETURN"** o **"TRANSIT_RETURN"**. Se guarda la proyección en la tabla *delivery_projection*, sobreescribiendola si existiera.
 >	3. Se registra el nuevo evento guardando la última ubicación conocida y cambiando el estado según: 
 >    	- Si no se está entregando al destinatario y:
 >       	- Si el estado era **"PENDING"**, se lo pasa a **"TRANSIT"**.
 >        	- Si el estado era **"TRANSIT"**, se lo pasa a **"TRANSIT"**.
->			- Si el estado era **"PENDING_RETURN"**, se lo pasa a **"RETURNED"**.
+>			- Si el estado era **"PENDING_RETURN"**, se lo pasa a **"TRANSIT_RETURN"**.
+>           - Si el estado era **"TRANSIT_RETURN"**, se lo pasa a **"TRANSIT_RETURN"**.
 >		- Si se lo está entregando al destinatario y:
 >			- Si el estado era **"PENDING"**, se lo pasa a **"DELIVERED"**.
 >			- Si el estado era **"TRANSIT"**, se lo pasa a **"DELIVERED"**.
+>           - Si el estado era **"TRANSIT_RETURN"**, se lo pasa a **"RETURNED"**
 >	4. Si el nuevo estado es **"DELIVERED"**, se envía un mensaje por medio del exchange directo ***"send_notification"***, con tipo *delivery_delivered*, para que el servicio de notification realice la notificación.
 >	5. Si el nuevo estado es **"RETURNED"**, se envía un mensaje por medio del exchange directo ***"send_notification"***, con tipo *delivery_returned*, para que el servicio de notification realice la notificación.
 > - **Caminos alternativos**:
@@ -66,7 +70,7 @@ graph TD;
 ---
 > ### CU-004: Cancelar un envío.
 > ---
-> - **Precondicion**: El usuario debe estar logueado. 
+> - **Precondicion**: El usuario debe estar logueado y debe tener el perfil de Administrador.
 > - **Camino normal**:
 >	1. Se recibe un request por interfaz REST indicando la intención de cancelar un envío, utilizando el trackingNumber.
 >	2. Se valida que el envío exista y le corresponda al usuario logueado. 
@@ -92,7 +96,7 @@ graph TD;
 ---
 >### CU-006: Calcular la proyección del envío.
 > ---
-> - **Precondicion**: El usuario debe estar logueado.
+> - **Precondicion**: El usuario debe estar logueado y debe tener el perfil Administrador.
 > - **Camino normal**:
 >	1. Se recibe un request por interfaz REST indicando la intención de regenerar la proyección utilizando el trackingNumber.
 >   2. Se busca la orderId correspondiente al trackingNumber, validando que haya un único orderId para ese trackingNumber.
@@ -104,7 +108,16 @@ graph TD;
 > 	- Si existen  varias orderId para el mismo trackingNumber, se agrega un registro a la tabla *failed_delivery_proyection* con el trackingNumber, el mensaje "Existen varios orderId para el mismo trackingNumber", y se agregan a trackingEvents todos los eventos con el trackingNumber. Se retorna error indicando el anterior mensaje.
 >   - Si existen varios eventos de creación de envíos con el mismo orderId pero distintos trackingNumber, se toma el trackingNumber más reciente.
 > 	- Si existe una inconsistencia en la transición de un estado, se agrega un registro a la tabla *failed_delivery_proyection* con el trackingNumber, el orderId, el mensaje "Hay una transición inconsistente. No se puede pasar del estado ${Origen} al estado ${Destino}", y se agregan a trackingEvents todos los eventos con el mismo orderId. Se retorna error indicando el anterior mensaje.
-
+---
+>### CU-007: Listar los envíos del sistema
+> ---
+> - **Precondicion**: El usuario debe estar logueado y debe tener el perfil Administrador.
+> - **Camino normal**:
+>	1. Se recibe un request por interfaz REST indicando la intención de obtener el listado de envíos del sistema, opcionalmente enviando filtros.
+>   2. Si se realiza la búsqueda de todos los envíos del sistema, ordenados por *creation_date* y paginados de a 20 registros.
+>   3. El sistema devuelve el listado.
+> - **Caminos alternativos**:
+> 	- Si el usuario envía algún parámetro de búsqueda, el sistema busca los envíos que cumplan con los filtros indicados.
 ---
 ## Modelo de datos
 
@@ -330,7 +343,7 @@ graph TD;
 
 </details>
 
-#### Realizar la proyección para el envío
+#### Realizar la proyección para el envío (Sólo para el administrador)
 
 <details>
  <summary><code>POST</code> <code><b>/v1/delivery/{trackingNumber}/project</b></code> <code>Realiza la proyección para el envío</code></summary>
@@ -379,6 +392,71 @@ graph TD;
 >		"lastKnownLocation": "Depósito", 
 >		"eventType": "PENDING"
 >	}] 
+>}
+>```
+
+</details>
+
+
+#### Listar los envíos del sistema
+
+<details>
+ <summary><code>GET</code> <code><b>/v1/delivery</b></code> <code>Retorna el listado de envíos</code></summary>
+
+##### Headers
+
+> | name      |  type     | data type               | description                                                           |
+> |-----------|-----------|-------------------------|-----------------------------------------------------------------------|
+> | Authorization      |  required | Bearer {token}   |  Bearer token |
+
+##### Query Params
+
+> | name      |  type     | data type               | description                                                           |
+> |-----------|-----------|-------------------------|-----------------------------------------------------------------------|
+> | status      |  not required | string    |  Estado a filtrar. Puede ser alguno de ["PENDING", "TRANSIT", "CANCELED", "DELIVERED", "PENDING_RETURN", "TRANSIT_RETURN", "RETURNED"] |
+> | startDate      |  not required | Date    |  Fecha desde a buscar. Se compara contra el created_date |
+> | endDate      |  not required | Date    |  Fecha hasta a buscar. Se compara contra el created_date |
+> | page      |  not required | number    |  Número de página a devlover. |
+
+
+
+
+##### Responses
+
+> | http code     | content-type                      | response                                                            |
+> |---------------|-----------------------------------|---------------------------------------------------------------------|
+> | `200`         | `application/json`	| `{"data":[{"orderId":"1234", "status": "TRANSIT", "lastKnowLocation": "Agencia 1"}], "page": 1}`
+> | `403`         | `application/json`                | `{"code":"403","message":"No cuenta con los permisos para acceder al recurso."}`                            |
+> | `500`         | `application/json`                | `{"code":"500","message":"Hubo un error al listar los envíos del sistema."}`                            |
+
+
+##### Example cURL
+
+> ```
+>  curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer 123asd" http://localhost:3000/v1/delivery
+> ```
+
+##### Response
+> Status Code: `200 OK`
+>```json
+>{
+>   "data": [
+>       {
+>           "orderId":"1234", 
+>           "status": "TRANSIT", 
+>           "lastKnowLocation": "Agencia 1"
+>       }, {
+>           "orderId":"1235", 
+>           "status": 
+>           "DELIVERED", 
+>           "lastKnowLocation": "Calle falsa 123"
+>       }, {
+>           "orderId":"1236", 
+>           "status": "PENDING_RETURN", 
+>           "lastKnowLocation": "Av. Siempreviva 742"
+>       }
+>   ],
+>   "page": 1
 >}
 >```
 
