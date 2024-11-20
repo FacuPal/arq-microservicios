@@ -416,7 +416,7 @@ graph TD;
 > | status      |  not required | string    |  Estado a filtrar. Puede ser alguno de ["PENDING", "TRANSIT", "CANCELED", "DELIVERED", "PENDING_RETURN", "TRANSIT_RETURN", "RETURNED"] |
 > | startDate      |  not required | Date    |  Fecha desde a buscar. Se compara contra el created_date |
 > | endDate      |  not required | Date    |  Fecha hasta a buscar. Se compara contra el created_date |
-> | page      |  not required | number    |  Número de página a devlover. |
+> | page      |  not required | number    |  Número de página a devolver. |
 
 
 
