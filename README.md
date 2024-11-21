@@ -130,7 +130,7 @@ graph TD;
 |   id              |   string  | identificador del evento                                  |
 |   orderId         |   string  | identificador de la orden                                 |
 |   trackingNumber  |   string  | Número de envío. Utilizado para realizar el tracking      |
-|   eventType       | [PENDING, TRANSIT, CANCELED, DELIVERED, PENDING_RETURN, RETURNED]     | identificador del movimiento | 
+|   eventType       | [PENDING, TRANSIT, CANCELED, DELIVERED, PENDING_RETURN, TRANSIT_RETURN, RETURNED]     | identificador del movimiento | 
 | lastKnownLocation | string    | indica cuál es la última ubicación conocida en el evento  |
 | creationDate      | Date      |  fecha de creación del evento                             |
 | updateDate        | Date      |  fecha de actualización del evento                        |
@@ -142,7 +142,7 @@ graph TD;
 |   orderId         |   string  | identificador de la orden                                 |
 |   userId          |   string  | identificador del usuario de la orden                     |
 |   trackingNumber  |   string  | Número de envío. Utilizado para realizar el tracking      |
-|   status          | [PENDING, TRANSIT, CANCELED, DELIVERED, PENDING_RETURN, RETURNED]     | Estado del envío | 
+|   status          | [PENDING, TRANSIT, CANCELED, DELIVERED, PENDING_RETURN, TRANSIT_RETURN, RETURNED]     | Estado del envío | 
 | lastKnownLocation | string    | indica cuál es la última ubicación conocida en el evento  |
 | trackingEvents    | Array     | Array de eventos del envío de tipo `{updateDate, locationName, eventType}`  |
 | creationDate      | Date      |  fecha de creación del evento                             |
