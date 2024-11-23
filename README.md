@@ -34,7 +34,7 @@ graph TD;
 ---
 > ### CU-002: Actualizar ubicación del envío. 
 > ---
-> - **Precondicion**: El usuario debe estar logueado.
+> - **Precondicion**: El usuario debe estar logueado y debe contar con el perfil de administrador.
 > - **Camino normal**:
 >	1.  Se recibe un request por interfaz REST indicando la ubicación en la que se encuentra el envío y un parámetro booleano que indica si se entregó el envío al destinatario.
 >	2. Se valida que el envío exista y se recalcula la proyección del mismo, validando también que se encuentre en estado **"PENDING**", **"TRANSIT"**, **"PENDING_RETURN"** o **"TRANSIT_RETURN"**. Se guarda la proyección en la tabla *delivery_projection*, sobreescribiendola si existiera.
