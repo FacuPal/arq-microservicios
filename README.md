@@ -473,20 +473,26 @@ Recibe por medio del exchange direct `create_delivery` a través de la queue `de
 body
 ```json
 {
-	"orderId": "23423",
-	"userId": "23423",
-	"status": "payment_defined"
+	"type": "create-delivery",
+	"message": {
+		"orderId": "23423",
+		"userId": "23423",
+		"status": "payment_defined"
+	}
 }
 ```
 
 ### **Pedido de notificación**
 
-Envía por medio del exchange direct `send_notification` a través de la queue `delivery_pending_return` 
+Envía por medio del exchange direct `send_notification` a través de la queue `send_notification` 
 body
 ```json
 {
-	"notificationType": "delivery_created",
-    "userId": "234123",
-	"trackingNumber": "12341324"
+	"type": "send-notification",
+	"message": {
+		"notificationType": "delivery_created",
+		"userId": "234123",
+		"trackingNumber": "12341324"
+	}
 }
 ```
