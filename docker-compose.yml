@@ -71,20 +71,20 @@ services:
       depends_on:
           - "rabbitmq"
           - "mongo"
-    # prod-api-cli:
-    #   container_name: prod-api-cli
+    prod-api-cli:
+      container_name: prod-api-cli
     #   build:
     #       context: "https://raw.githubusercontent.com/nmarsollier/ecommerce_api_client_react/master/Dockerfile.prod"
-    #   ports:
-    #       - '4200:80'
-    #   # image: prod-api-cli
-    #   stdin_open: true
-    #   depends_on:
-    #       - "prod-orders-go"
-    #       - "prod-cart-go"
-    #       - "prod-catalog-go"
-    #       - "prod-image-go"
-    #       - "prod-auth-go"
+      ports:
+          - '4200:4200'
+      image: prod-api-cli
+      stdin_open: true
+      depends_on:
+          - "prod-orders-go"
+          - "prod-cart-go"
+          - "prod-catalog-go"
+          - "prod-image-go"
+          - "prod-auth-go"
 
 # networks:
 #   default:
