@@ -99,7 +99,10 @@ const DeliveryEventSchema = new Schema({
     type: Date,
     default: Date.now()
   },
-}, { collection: "delivery_event" });
+}, {
+  collection: "delivery_event",
+  versionKey: false,
+});
 
 
 
@@ -144,8 +147,9 @@ const DeliveryProjectionSchema = new Schema({
     default: Date.now()
   },
 }, {
-  collection: "delivery_projection"
-})
+  collection: "delivery_projection",
+  versionKey: false,
+});
 
 /**
  * Agrega un evento a la proyección
@@ -153,12 +157,13 @@ const DeliveryProjectionSchema = new Schema({
 DeliveryProjectionSchema.methods.updateLocation = function (event: IDeliveryEvent) {
 
   // Si no existe un evento con una fecha más actual, actualizamos el estado.  
-  if (!!this.trackingEvents.find((e: IDeliveryEvent) => e.creationDate > event.creationDate)) {
+  if (!this.trackingEvents.find((e: IDeliveryEvent) => e.creationDate > event.creationDate)) {
     this.status = event.eventType;
     this.lastKnownLocation = event.lastKnownLocation;
-  }; 
+  };
   //Agregamos el evento
   this.trackingEvents.push(event)
+  this.save()
   return;
 };
 
@@ -200,8 +205,9 @@ const FailedDeliveryProjectionSchema = new Schema({
     default: Date.now()
   },
 }, {
-  collection: "failed_delivery_projection"
-})
+  collection: "failed_delivery_projection",
+  versionKey: false,
+});
 
 
 

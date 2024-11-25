@@ -34,13 +34,13 @@ export function init() {
  *
  * @apiSuccessExample {json} Mensaje
  *     {
- *        "type": "article-exist",
- *        "message": {
- *             "referenceId": "{cartId}",
- *             "articleId": "{articleId}",
- *             "valid": true|false
- *        }
- *     }
+ *	    "type": "create-delivery",
+ *	    "message": {
+ *	    	"orderId": "23423",
+ *	    	"userId": "23423",
+ *	    	"status": "payment_defined"
+ *	    }
+ *    }
  */
 function processCreateDelivery(rabbitMessage: IRabbitMessage) {
     const event = rabbitMessage.message as ICreateDeliveryMessage;

@@ -23,8 +23,8 @@ interface UpdateDeliveryRequest {
     lastKnownLocation: string;
     delivered: boolean;
 }
-export function updateDelivery(userId: string, trackingNumber: string, updateDeliveryRequest: UpdateDeliveryRequest) {
-    return new Promise(async (resolve, reject) => {
+export function updateDelivery(userId: string, trackingNumber: string, updateDeliveryRequest: UpdateDeliveryRequest): Promise<IDeliveryProjection> {
+    return new Promise((resolve, reject) => {
 
         //Calcular proyección.
         DeliveryProjection.findOne({
@@ -52,15 +52,14 @@ export function updateDelivery(userId: string, trackingNumber: string, updateDel
             event.eventType = updateDeliveryRequest.delivered ? DeliveryEventStatusEnum.DELIVERED : DeliveryEventStatusEnum.TRANSIT;
             event.lastKnownLocation = updateDeliveryRequest.lastKnownLocation;
             event.creationDate = new Date();
-            event.save().then(event => projection.updateLocation(event))
-        })
 
-
-        //Validar próximo estado
-
-
-
-    })
+            event.save()
+            //Update projection
+            .then(event => projection.updateLocation(event))
+            // Retornamos la projección
+            .then(e => resolve(projection))
+        });
+    });
 }
 
 export function currentCart(userId: string): Promise<ICart> {

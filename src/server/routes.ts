@@ -74,8 +74,8 @@ function getDelivery(req: IUserSessionRequest, res: express.Response) {
 
 function updateDelivery(req: IUserSessionRequest, res: express.Response) {
   cart.updateDelivery(req.user.user.id, req.params.trackingNumber, req.body)
-    .then(cart => {
-      res.json(cart);
+    .then(projection => {
+      res.json(projection);
     })
     .catch(err => {
       error.handle(res, err);
