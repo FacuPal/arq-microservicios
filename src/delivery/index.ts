@@ -6,8 +6,12 @@ export {
     decrementArticle,
     deleteArticle,
     validateCheckout,
-    placeOrder
+    placeOrder,
 } from "./cart";
+
+export {
+    updateDelivery
+} from "./delivery"
 
 export {
     IArticleExistMessage,

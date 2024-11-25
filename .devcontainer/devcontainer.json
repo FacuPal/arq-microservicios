@@ -2,6 +2,9 @@
     "name": "arq-microservicios",
     "image": "mcr.microsoft.com/devcontainers/javascript-node:dev-22",
     "workspaceFolder": "/workspaces/arq-microservicios",
+    "forwardPorts": [
+        3005
+    ],
     "customizations": {
         "vscode": {
             "settings": {},

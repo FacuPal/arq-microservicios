@@ -41,23 +41,37 @@ export interface IDeliveryEvent extends Document {
   lastKnownLocation: string;
   updateDate: Date;
   creationDate: Date;
-  enabled: Boolean;
-  // addEvent: Function;
+}
+
+export interface IDeliveryProjection extends Document {
+  id: string;
+  orderId: string;
+  userId: string;
+  trackingNumber: string;
+  status: string;
+  lastKnownLocation: string;
+  trackingEvents: ITrackingEvent[];
+  updateDate: Date;
+  creationDate: Date;
+  updateLocation: Function;
   // removeArticle: Function;
-  // incrementArticle: Function;
-  // decrementArticle: Function;
+}
+
+export interface IFailedDeliveryProjection extends Document {
+  id: string;
+  orderId: string;
+  userId: string;
+  trackingNumber: string;
+  failedMessage: string,
+  trackingEvents: ITrackingEvent[];
+  updateDate: Date;
+  creationDate: Date;
 }
 
 /**
- * Esquema del cart
+ * Esquema del evento de envío
  */
 const DeliveryEventSchema = new Schema({
-  id: {
-    type: String,
-    trim: true,
-    default: "",
-    required: [true, "El id asociado al deliveryEvent"]
-  },
   orderId: {
     type: String,
     trim: true,
@@ -76,22 +90,7 @@ const DeliveryEventSchema = new Schema({
   lastKnownLocation: {
     type: String,
     trim: true,
-    required: [true, "El eventType asociado al deliveryEvent"]
   },
-  // articles: [{
-  //   articleId: {
-  //     type: String,
-  //     required: [true, "El articlelId agregado al cart"],
-  //     trim: true
-  //   },
-  //   quantity: {
-  //     type: Number
-  //   },
-  //   validated: {
-  //     type: Boolean,
-  //     default: false
-  //   }
-  // }],
   updated: {
     type: Date,
     default: Date.now()
@@ -100,27 +99,110 @@ const DeliveryEventSchema = new Schema({
     type: Date,
     default: Date.now()
   },
-}, { collection: "deliveryEvent" });
+}, { collection: "delivery_event" });
 
-DeliveryEventSchema.index({ id: 1, enabled: -1 });
-DeliveryEventSchema.index({ id: 1, orderId: 1 });
 
-// /**
-//  * Agrega un articulo al carrito
-//  */
-// DeliveryEventSchema.methods.addArticle = function (article: ICartArticle) {
-//   for (let _i = 0; _i < this.articles.length; _i++) {
-//     const element: ICartArticle = this.articles[_i];
-//     if (element.articleId == article.articleId) {
-//       element.quantity = Number(element.quantity) + Number(article.quantity);
-//       return;
-//     }
-//   }
 
-//   this.articles.push(article);
-//   sendArticleValidation(this.id, article.articleId).then();
-//   return;
-// };
+/**
+ * Esquema de la proyección del envío
+ */
+const DeliveryProjectionSchema = new Schema({
+  orderId: {
+    type: String,
+    trim: true,
+    required: [true, "El orderId asociado a la proyección"]
+  },
+  userId: {
+    type: String,
+    trim: true,
+    required: [true, "El userId asociado a la proyección"]
+  },
+  trackingNumber: {
+    type: String,
+    trim: true,
+    required: [true, "El trackingNumber asociado a la proyección"]
+  },
+  status: {
+    type: String,
+    trim: true,
+    required: [true, "El estado asociado a la proyección"]
+  },
+  lastKnownLocation: {
+    type: String,
+    trim: true,
+  },
+  trackingEvents: {
+    type: Array,
+    trim: true,
+  },
+  updated: {
+    type: Date,
+    default: Date.now()
+  },
+  created: {
+    type: Date,
+    default: Date.now()
+  },
+}, {
+  collection: "delivery_projection"
+})
+
+/**
+ * Agrega un evento a la proyección
+ */
+DeliveryProjectionSchema.methods.updateLocation = function (event: IDeliveryEvent) {
+
+  // Si no existe un evento con una fecha más actual, actualizamos el estado.  
+  if (!!this.trackingEvents.find((e: IDeliveryEvent) => e.creationDate > event.creationDate)) {
+    this.status = event.eventType;
+    this.lastKnownLocation = event.lastKnownLocation;
+  }; 
+  //Agregamos el evento
+  this.trackingEvents.push(event)
+  return;
+};
+
+/**
+ * Esquema de la proyección del envío
+ */
+const FailedDeliveryProjectionSchema = new Schema({
+  orderId: {
+    type: String,
+    trim: true,
+  },
+  userId: {
+    type: String,
+    trim: true,
+  },
+  trackingNumber: {
+    type: String,
+    trim: true,
+  },
+  failedMessage: {
+    type: String,
+    trim: true,
+    required: [true, "Mensaje de error de la proyección fallida"]
+  },
+  lastKnownLocation: {
+    type: String,
+    trim: true,
+  },
+  trackingEvents: {
+    type: Array,
+    trim: true,
+  },
+  updated: {
+    type: Date,
+    default: Date.now()
+  },
+  created: {
+    type: Date,
+    default: Date.now()
+  },
+}, {
+  collection: "failed_delivery_projection"
+})
+
 
 
 // /**
@@ -158,8 +240,20 @@ DeliveryEventSchema.index({ id: 1, orderId: 1 });
  */
 DeliveryEventSchema.pre("save", function (this: IDeliveryEvent, next) {
   this.updateDate = new Date();
-
+  next();
+});
+DeliveryProjectionSchema.pre("save", function (this: IDeliveryEvent, next) {
+  this.updateDate = new Date();
+  next();
+});
+FailedDeliveryProjectionSchema.pre("save", function (this: IDeliveryEvent, next) {
+  this.updateDate = new Date();
   next();
 });
 
+//TODO: Borrar
 export let Cart = model<IDeliveryEvent>("DeliveryEvent", DeliveryEventSchema);
+
+export let DeliveryEvent = model<IDeliveryEvent>("DeliveryEvent", DeliveryEventSchema);
+export let DeliveryProjection = model<IDeliveryProjection>("DeliveryProjection", DeliveryProjectionSchema);
+export let FailedDeliveryProjection = model<IFailedDeliveryProjection>("FailedDeliveryProjection", FailedDeliveryProjectionSchema);

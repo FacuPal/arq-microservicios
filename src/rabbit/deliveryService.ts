@@ -7,6 +7,7 @@ import { RabbitDirectConsumer } from "./tools/directConsumer";
 import { RabbitDirectEmitter } from "./tools/directEmitter";
 import { IRabbitMessage } from "./tools/common";
 import { logger } from "../server/logger";
+import { createDelivery } from "../delivery/createDelivery";
 
 interface ICreateDeliveryMessage {
     orderId: string;
@@ -42,15 +43,15 @@ export function init() {
  *     }
  */
 function processCreateDelivery(rabbitMessage: IRabbitMessage) {
-    const article = rabbitMessage.message as ICreateDeliveryMessage;
-    // validation.articleValidationCheck(article);
-    logger.info(article)
-    const notification = {
-		notificationType: "delivery_created",
-		userId: "234123",
-		trackingNumber: "12341324"
-	}
-    sendNotification(notification)
+    const event = rabbitMessage.message as ICreateDeliveryMessage;
+    logger.info(event)
+    createDelivery(event)
+    // const notification = {
+	// 	notificationType: "delivery_created",
+	// 	userId: "234123",
+	// 	trackingNumber: "12341324"
+	// }
+    // sendNotification(notification)
 }
 
 

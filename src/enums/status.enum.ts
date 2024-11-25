@@ -1,0 +1,9 @@
+export enum DeliveryEventStatusEnum {
+    PENDING = "PENDING",
+    TRANSIT = "TRANSIT",
+    CANCELED = "CANCELED",
+    DELIVERED = "DELIVERED",
+    PENDING_RETURN = "PENDING_RETURN",
+    TRANSIT_RETURN = "TRANSIT_RETURN",
+    RETURNED = "RETURNED",
+}

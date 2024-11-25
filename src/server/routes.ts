@@ -12,17 +12,17 @@ import { NextFunction } from "connect";
  */
 export function init(app: Express) {
   // Listar los envíos del sistema (Admin)
-  app.route("/v1/delivery").get(validateToken, addArticle);
+  app.route("/v1/delivery").get(validateToken, listDeliveries);
   // Obtener ubicación del envío
-  app.route("/v1/delivery/:trackingNumber").get(validateToken, getCart);
+  app.route("/v1/delivery/:trackingNumber").get(validateToken, getDelivery);
   //Actualizar la ubicación del envío
-  app.route("/v1/delivery/:trackingNumber").put(validateToken, deleteArticle);
+  app.route("/v1/delivery/:trackingNumber").put(validateToken, updateDelivery);
   //Cancelar un envío (Admin)
-  app.route("/v1/delivery/:trackingNumber").delete(validateToken, incrementArticle);
+  app.route("/v1/delivery/:trackingNumber").delete(validateToken, cancelDelivery);
   //Solicitar devolución de un envío
-  app.route("/v1/delivery/:trackingNumber/return").post(validateToken, decrementArticle);
+  app.route("/v1/delivery/:trackingNumber/return").post(validateToken, returnDelivery);
   //Realizar proyección de un envío (Admin)
-  app.route("/v1/delivery/:trackingNumber/project").post(validateToken, validateCheckout);
+  app.route("/v1/delivery/:trackingNumber/project").post(validateToken, projectDelivery);
 }
 
 interface IUserSessionRequest extends express.Request {
@@ -51,6 +51,69 @@ function validateToken(req: IUserSessionRequest, res: express.Response, next: Ne
     })
     .catch(err => error.handle(res, err));
 }
+
+function listDeliveries(req: IUserSessionRequest, res: express.Response) {
+  cart.addArticle(req.user.user.id, req.body)
+    .then(cart => {
+      res.json(cart);
+    })
+    .catch(err => {
+      error.handle(res, err);
+    });
+}
+
+function getDelivery(req: IUserSessionRequest, res: express.Response) {
+  cart.addArticle(req.user.user.id, req.body)
+    .then(cart => {
+      res.json(cart);
+    })
+    .catch(err => {
+      error.handle(res, err);
+    });
+}
+
+function updateDelivery(req: IUserSessionRequest, res: express.Response) {
+  cart.updateDelivery(req.user.user.id, req.params.trackingNumber, req.body)
+    .then(cart => {
+      res.json(cart);
+    })
+    .catch(err => {
+      error.handle(res, err);
+    });
+}
+
+
+function cancelDelivery(req: IUserSessionRequest, res: express.Response) {
+  cart.addArticle(req.user.user.id, req.body)
+    .then(cart => {
+      res.json(cart);
+    })
+    .catch(err => {
+      error.handle(res, err);
+    });
+}
+
+function returnDelivery(req: IUserSessionRequest, res: express.Response) {
+  cart.addArticle(req.user.user.id, req.body)
+    .then(cart => {
+      res.json(cart);
+    })
+    .catch(err => {
+      error.handle(res, err);
+    });
+}
+
+function projectDelivery(req: IUserSessionRequest, res: express.Response) {
+  cart.addArticle(req.user.user.id, req.body)
+    .then(cart => {
+      res.json(cart);
+    })
+    .catch(err => {
+      error.handle(res, err);
+    });
+}
+
+
 
 /**
  * @api {post} /v1/cart/article Agregar Artículo
