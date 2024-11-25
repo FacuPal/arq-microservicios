@@ -36,7 +36,7 @@ export interface ITrackingEvent {
 export interface IDeliveryEvent extends Document {
   id: string;
   orderId: string;
-  trackingNumber: string;
+  trackingNumber: number;
   eventType: string;
   lastKnownLocation: string;
   updateDate: Date;
@@ -47,7 +47,7 @@ export interface IDeliveryProjection extends Document {
   id: string;
   orderId: string;
   userId: string;
-  trackingNumber: string;
+  trackingNumber: number;
   status: string;
   lastKnownLocation: string;
   trackingEvents: ITrackingEvent[];
@@ -61,7 +61,7 @@ export interface IFailedDeliveryProjection extends Document {
   id: string;
   orderId: string;
   userId: string;
-  trackingNumber: string;
+  trackingNumber: number;
   failedMessage: string,
   trackingEvents: ITrackingEvent[];
   updateDate: Date;
@@ -78,7 +78,7 @@ const DeliveryEventSchema = new Schema({
     required: [true, "El orderId asociado al deliveryEvent"]
   },
   trackingNumber: {
-    type: String,
+    type: Number,
     trim: true,
     required: [true, "El trackingNumber asociado al deliveryEvent"]
   },
@@ -121,7 +121,7 @@ const DeliveryProjectionSchema = new Schema({
     required: [true, "El userId asociado a la proyección"]
   },
   trackingNumber: {
-    type: String,
+    type: Number,
     trim: true,
     required: [true, "El trackingNumber asociado a la proyección"]
   },
@@ -180,7 +180,7 @@ const FailedDeliveryProjectionSchema = new Schema({
     trim: true,
   },
   trackingNumber: {
-    type: String,
+    type: Number,
     trim: true,
   },
   failedMessage: {

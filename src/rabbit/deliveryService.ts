@@ -17,7 +17,7 @@ interface ICreateDeliveryMessage {
 interface INotificationMessage {
     notificationType: string;
     userId: string;
-    trackingNumber: string;
+    trackingNumber: number;
 }
 
 export function init() {
@@ -44,7 +44,6 @@ export function init() {
  */
 function processCreateDelivery(rabbitMessage: IRabbitMessage) {
     const event = rabbitMessage.message as ICreateDeliveryMessage;
-    logger.info(event)
     createDelivery(event)
     // const notification = {
 	// 	notificationType: "delivery_created",

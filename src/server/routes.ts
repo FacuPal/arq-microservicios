@@ -73,7 +73,7 @@ function getDelivery(req: IUserSessionRequest, res: express.Response) {
 }
 
 function updateDelivery(req: IUserSessionRequest, res: express.Response) {
-  cart.updateDelivery(req.user.user.id, req.params.trackingNumber, req.body)
+  cart.updateDelivery(req.user.user.id, parseInt(req.params.trackingNumber), req.body)
     .then(projection => {
       res.json(projection);
     })

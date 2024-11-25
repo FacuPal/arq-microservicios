@@ -23,7 +23,7 @@ interface UpdateDeliveryRequest {
     lastKnownLocation: string;
     delivered: boolean;
 }
-export function updateDelivery(userId: string, trackingNumber: string, updateDeliveryRequest: UpdateDeliveryRequest): Promise<IDeliveryProjection> {
+export function updateDelivery(userId: string, trackingNumber: number, updateDeliveryRequest: UpdateDeliveryRequest): Promise<IDeliveryProjection> {
     return new Promise((resolve, reject) => {
 
         //Calcular proyección.

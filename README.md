@@ -129,7 +129,7 @@ graph TD;
 |-------------------|---------- |-----------------------------------------------------------|
 |   id              |   string  | identificador del evento                                  |
 |   orderId         |   string  | identificador de la orden                                 |
-|   trackingNumber  |   string  | Número de envío. Utilizado para realizar el tracking      |
+|   trackingNumber  |   number  | Número de envío. Utilizado para realizar el tracking      |
 |   eventType       | [PENDING, TRANSIT, CANCELED, DELIVERED, PENDING_RETURN, TRANSIT_RETURN, RETURNED]     | identificador del movimiento | 
 | lastKnownLocation | string    | indica cuál es la última ubicación conocida en el evento  |
 | creationDate      | Date      |  fecha de creación del evento                             |
@@ -141,7 +141,7 @@ graph TD;
 |-------------------|---------- |-----------------------------------------------------------|
 |   orderId         |   string  | identificador de la orden                                 |
 |   userId          |   string  | identificador del usuario de la orden                     |
-|   trackingNumber  |   string  | Número de envío. Utilizado para realizar el tracking      |
+|   trackingNumber  |   number  | Número de envío. Utilizado para realizar el tracking      |
 |   status          | [PENDING, TRANSIT, CANCELED, DELIVERED, PENDING_RETURN, TRANSIT_RETURN, RETURNED]     | Estado del envío | 
 | lastKnownLocation | string    | indica cuál es la última ubicación conocida en el evento  |
 | trackingEvents    | Array     | Array de eventos del envío de tipo `{updateDate, locationName, eventType}`  |
@@ -153,7 +153,7 @@ graph TD;
 |-------------------|---------- |-----------------------------------------------------------|
 |   orderId         |   string  | identificador de la orden                                 |
 |   userId          |   string  | identificador del usuario de la orden                     |
-|   trackingNumber  |   string  | Número de envío. Utilizado para realizar el tracking      |
+|   trackingNumber  |   number  | Número de envío. Utilizado para realizar el tracking      |
 | failMessage       | string    | indica cuál fue el problema al generar la proyección.     |
 | trackingEvents    | Array     | Array de eventos del envío de tipo `{ updateDate, locationName, eventType}`  |
 | creationDate      | Date      |  fecha de creación del evento                             |
@@ -180,7 +180,7 @@ graph TD;
 
 > | name      			|  type     | data type               | description                                                           |
 > |---------------------|-----------|-------------------------|-----------------------------------------------------------------------|
-> | trackingNumber      |  required | string    			  |  Tracking number  |
+> | trackingNumber      |  required | number    			  |  Tracking number  |
 
 ##### Responses
 
@@ -191,7 +191,7 @@ graph TD;
 ##### Example cURL
 
 > ```
->  curl -X GET -H "Content-Type: application/json" -H "Authorization: Bearer 123asd" --data '{"orderId":"1234", "trackingNumber": "1234", "status": "TRANSIT", "lastKnowLocation": "Agencia 1", "deliveryEvents": [{ "updateDate": "2024-11-10", "lastKnownLocation": "Agencia 1", "eventType": "TRANSIT"}]}' http://localhost:3000/v1/delivery/{trackingNumber}
+>  curl -X GET -H "Content-Type: application/json" -H "Authorization: Bearer 123asd" --data '{"orderId":"1234", "trackingNumber": 1234, "status": "TRANSIT", "lastKnowLocation": "Agencia 1", "deliveryEvents": [{ "updateDate": "2024-11-10", "lastKnownLocation": "Agencia 1", "eventType": "TRANSIT"}]}' http://localhost:3000/v1/delivery/{trackingNumber}
 > ```
 
 ##### Response
@@ -199,7 +199,7 @@ graph TD;
 >```json
 >{
 >	"orderId":"1234", 
->	"trackingNumber": "1234",
+>	"trackingNumber": 1234,
 >	"status": "TRANSIT", 
 >	"lastKnowLocation": "Agencia 1", 
 >	"deliveryEvents": [{ 
@@ -232,7 +232,7 @@ graph TD;
 
 > | name      |  type     | data type               | description                                                           |
 > |-----------|-----------|-------------------------|-----------------------------------------------------------------------|
-> | trackingNumber      |  required | string    |  Tracking number  |
+> | trackingNumber      |  required | number    |  Tracking number  |
 
 ##### Body
 
@@ -279,7 +279,7 @@ graph TD;
 
 > | name      |  type     | data type               | description                                                           |
 > |-----------|-----------|-------------------------|-----------------------------------------------------------------------|
-> | trackingNumber      |  required | string    |  Tracking number  |
+> | trackingNumber      |  required | number    |  Tracking number  |
 
 ##### Responses
 
@@ -319,7 +319,7 @@ graph TD;
 
 > | name      |  type     | data type               | description                                                           |
 > |-----------|-----------|-------------------------|-----------------------------------------------------------------------|
-> | trackingNumber      |  required | string    |  Tracking number  |
+> | trackingNumber      |  required | number    |  Tracking number  |
 
 ##### Responses
 
@@ -358,7 +358,7 @@ graph TD;
 
 > | name      |  type     | data type               | description                                                           |
 > |-----------|-----------|-------------------------|-----------------------------------------------------------------------|
-> | trackingNumber      |  required | string    |  Tracking number  |
+> | trackingNumber      |  required | number    |  Tracking number  |
 
 ##### Responses
 
@@ -372,7 +372,7 @@ graph TD;
 ##### Example cURL
 
 > ```
->  curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer 123asd" --data '{"orderId":"1234", "trackingNumber": "1234", "status": "TRANSIT", "lastKnowLocation": "Agencia 1", "deliveryEvents": [{ "updateDate": "2024-11-10", "lastKnownLocation": "Agencia 1", "eventType": "TRANSIT"}]}' http://localhost:3000/v1/delivery/{trackingNumber}/project
+>  curl -X POST -H "Content-Type: application/json" -H "Authorization: Bearer 123asd" --data '{"orderId":"1234", "trackingNumber": 1234, "status": "TRANSIT", "lastKnowLocation": "Agencia 1", "deliveryEvents": [{ "updateDate": "2024-11-10", "lastKnownLocation": "Agencia 1", "eventType": "TRANSIT"}]}' http://localhost:3000/v1/delivery/{trackingNumber}/project
 > ```
 
 ##### Response
@@ -380,7 +380,7 @@ graph TD;
 >```json
 >{
 >	"orderId":"1234", 
->	"trackingNumber": "1234",
+>	"trackingNumber": 1234,
 >	"status": "TRANSIT", 
 >	"lastKnowLocation": "Agencia 1", 
 >	"deliveryEvents": [{ 
@@ -492,7 +492,7 @@ body
 	"message": {
 		"notificationType": "delivery_created",
 		"userId": "234123",
-		"trackingNumber": "12341324"
+		"trackingNumber": 12341324
 	}
 }
 ```
