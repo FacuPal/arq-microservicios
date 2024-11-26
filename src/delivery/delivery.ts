@@ -309,6 +309,19 @@ export function returnDelivery(token: string, userId: string, trackingNumber: nu
     });
 }
 
+interface IListDeliveriesFilters {
+    status?: DeliveryEventStatusEnum,
+    startDate?: Date,
+    endDate?: Date,
+    page?: number,
+}
+
+export function listDeliveries(filters: IListDeliveriesFilters): Promise<void> {
+    return new Promise((resolve, reject) => {
+
+    })
+}
+
 /**
  * @api {post} /v1/cart/checkout Checkout
  * @apiName Checkout

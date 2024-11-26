@@ -8,6 +8,7 @@ import * as error from "./error";
 import * as express from "express";
 import { NextFunction } from "connect";
 import { userInfo } from "os";
+import { DeliveryEventStatusEnum } from "../enums/status.enum";
 
 /**
  * Modulo de seguridad, login/logout, cambio de contraseñas, etc
@@ -72,11 +73,18 @@ function validateAdminAccess(req: IUserSessionRequest, res: express.Response, ne
   next()
 }
 
-
+interface IGetDeliveryRequest extends IUserSessionRequest {
+  body: {
+    status?: DeliveryEventStatusEnum,
+    startDate?: Date,
+    endDate?: Date,
+    page?: number,
+  }
+}
 function listDeliveries(req: IUserSessionRequest, res: express.Response) {
-  cart.addArticle(req.user.user.id, req.body)
-    .then(cart => {
-      res.json(cart);
+  cart.listDeliveries(req.body)
+    .then(deliveries => {
+      res.json(deliveries);
     })
     .catch(err => {
       error.handle(res, err);

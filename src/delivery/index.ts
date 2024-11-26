@@ -15,7 +15,8 @@ export {
     getDelivery,
     cancelDelivery,
     returnDelivery,
-    projectDelivery
+    projectDelivery,
+    listDeliveries
 } from "./delivery"
 
 export {
