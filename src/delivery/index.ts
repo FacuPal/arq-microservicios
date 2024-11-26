@@ -14,7 +14,8 @@ export {
     getOrderInfo,
     getDelivery,
     cancelDelivery,
-    returnDelivery
+    returnDelivery,
+    projectDelivery
 } from "./delivery"
 
 export {

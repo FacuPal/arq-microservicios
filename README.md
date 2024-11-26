@@ -372,6 +372,7 @@ graph TD;
 > | http code     | content-type                      | response                                                            |
 > |---------------|-----------------------------------|---------------------------------------------------------------------|
 > | `200`         | `application/json`	| `{"orderId":"1234", "status": "TRANSIT", "lastKnowLocation": "Agencia 1", "deliveryEvents": [{ "updateDate": "2024-11-10", "lastKnownLocation": "Agencia 1", "eventType": "TRANSIT"}]}`                               |
+> | `403`         | `application/json`                | `{"code": 403, "error": "No cuenta con los permisos para acceder a este recurso."}`                            |
 > | `404`         | `application/json`                | `{"code":"404","message":"El envío solicitado no existe."}`                            |
 > | `500`         | `application/json`                | `{"code":"500","message":"Existen varios orderId para el mismo trackingNumber."}`                            |
 

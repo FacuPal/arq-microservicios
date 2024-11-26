@@ -160,10 +160,15 @@ function returnDelivery(req: IReturnDeliveryRequest, res: express.Response) {
     });
 }
 
-function projectDelivery(req: IUserSessionRequest, res: express.Response) {
-  cart.addArticle(req.user.user.id, req.body)
-    .then(cart => {
-      res.json(cart);
+interface IProjectDeliveryRequest extends IUserSessionRequest {
+  params: {
+    trackingNumber: string
+  }
+}
+function projectDelivery(req: IProjectDeliveryRequest, res: express.Response) {
+  cart.projectDelivery(req.user.token, parseInt(req.params.trackingNumber))
+    .then(projection => {
+      res.json(projection);
     })
     .catch(err => {
       error.handle(res, err);
