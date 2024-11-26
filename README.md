@@ -47,13 +47,14 @@ graph TD;
 >		- Si se lo está entregando al destinatario y:
 >			- Si el estado era **"PENDING"**, se lo pasa a **"DELIVERED"**.
 >			- Si el estado era **"TRANSIT"**, se lo pasa a **"DELIVERED"**.
+>           - Si el estado era **"PENDING_RETURN"**, se lo pasa a **"RETURNED"**
 >           - Si el estado era **"TRANSIT_RETURN"**, se lo pasa a **"RETURNED"**
 >	4. Si el nuevo estado es **"DELIVERED"**, se envía un mensaje por medio del exchange directo ***"send_notification"***, con tipo *delivery_delivered*, para que el servicio de notification realice la notificación.
 >	5. Si el nuevo estado es **"RETURNED"**, se envía un mensaje por medio del exchange directo ***"send_notification"***, con tipo *delivery_returned*, para que el servicio de notification realice la notificación.
 > - **Caminos alternativos**:
 > 	- Si el envío no existe, se retorna error.
-> 	- Si la proyección del envío no está en cualquiera de los estados **"PENDING**", **"TRANSIT"** o **"PENDING_RETURN"**, se retorna error.
->	- Si la proyección del envío está en estado **"PENDING_RETURN"** y se recibe una actualización con el parámetro de entrega al destinatario en verdadero, se devuelve error. 
+> 	- Si la proyección del envío no está en cualquiera de los estados **"PENDING**", **"TRANSIT"**,  **"PENDING_RETURN"** o **TRANSIT_RETURN**, se retorna error informando "El envío no puede actualizar su ubicación".
+>	- Si la proyección del envío está en estado **"PENDING_RETURN"** y se recibe una actualización con el parámetro de entrega al destinatario en verdadero, se devuelve error indicando "No se puede entregar al cliente si el envío está pendiente de devolución". 
 ---
 > ### CU-003: Consulta la ubicación de un envío.
 > ---
@@ -107,7 +108,8 @@ graph TD;
 > - **Caminos alternativos**:
 > 	- Si existen  varias orderId para el mismo trackingNumber, se agrega un registro a la tabla *failed_delivery_proyection* con el trackingNumber, el mensaje "Existen varios orderId para el mismo trackingNumber", y se agregan a trackingEvents todos los eventos con el trackingNumber. Se retorna error indicando el anterior mensaje.
 >   - Si existen varios eventos de creación de envíos con el mismo orderId pero distintos trackingNumber, se toma el trackingNumber más reciente.
-> 	- Si existe una inconsistencia en la transición de un estado, se agrega un registro a la tabla *failed_delivery_proyection* con el trackingNumber, el orderId, el mensaje "Hay una transición inconsistente. No se puede pasar del estado ${Origen} al estado ${Destino}", y se agregan a trackingEvents todos los eventos con el mismo orderId. Se retorna error indicando el anterior mensaje.
+> 	- Si existe una inconsistencia en la transición de un estado, se agrega un registro a la tabla *failed_delivery_proyection* con el trackingNumber, el orderId, el mensaje "La transición ${estadoOrigen}$ -> ${estadoDestino}$ es inconsistente.", y se agregan a trackingEvents todos los eventos con el mismo trackingNumber. Se retorna error indicando el anterior mensaje.
+>	- Si se envía un estado desconocido, se agrega un registro a la tabla *failed_delivery_proyection* con el trackingNumber, el orderId, el mensaje "Estado desconocido: ${estado}#" y se agregan a trackingEvents todos los eventos con el mismo trackingNumber.
 ---
 >### CU-007: Listar los envíos del sistema
 > ---
@@ -132,8 +134,8 @@ graph TD;
 |   trackingNumber  |   number  | Número de envío. Utilizado para realizar el tracking      |
 |   eventType       | [PENDING, TRANSIT, CANCELED, DELIVERED, PENDING_RETURN, TRANSIT_RETURN, RETURNED]     | identificador del movimiento | 
 | lastKnownLocation | string    | indica cuál es la última ubicación conocida en el evento  |
-| creationDate      | Date      |  fecha de creación del evento                             |
-| updateDate        | Date      |  fecha de actualización del evento                        |
+| created      | Date      |  fecha de creación del evento                             |
+| updated        | Date      |  fecha de actualización del evento                        |
 
 
 ### Tabla: *delivery_projection*
@@ -145,8 +147,8 @@ graph TD;
 |   status          | [PENDING, TRANSIT, CANCELED, DELIVERED, PENDING_RETURN, TRANSIT_RETURN, RETURNED]     | Estado del envío | 
 | lastKnownLocation | string    | indica cuál es la última ubicación conocida en el evento  |
 | trackingEvents    | Array     | Array de eventos del envío de tipo `{updateDate, locationName, eventType}`  |
-| creationDate      | Date      |  fecha de creación del evento                             |
-| updateDate        | Date      |  fecha de actualización del evento                        |
+| created      | Date      |  fecha de creación del evento                             |
+| updated        | Date      |  fecha de actualización del evento                        |
 
 ### Tabla: *failed_delivery_projection*
 |   column          |   type    |   description                                             |
@@ -156,8 +158,8 @@ graph TD;
 |   trackingNumber  |   number  | Número de envío. Utilizado para realizar el tracking      |
 | failMessage       | string    | indica cuál fue el problema al generar la proyección.     |
 | trackingEvents    | Array     | Array de eventos del envío de tipo `{ updateDate, locationName, eventType}`  |
-| creationDate      | Date      |  fecha de creación del evento                             |
-| updateDate        | Date      |  fecha de actualización del evento                        |
+| created      | Date      |  fecha de creación del evento                             |
+| updated        | Date      |  fecha de actualización del evento                        |
 
 
 --------
@@ -246,6 +248,7 @@ graph TD;
 > | http code     | content-type                      | response                                                            |
 > |---------------|-----------------------------------|---------------------------------------------------------------------|
 > | `200`         | `application/json`       | `{"message":"Ubicación actualizada exitósamente."}`                               |
+> | `403`         | `application/json`                | `{"code": 403,"error": "No cuenta con los permisos para acceder a este recurso."}`                            |
 > | `404`         | `application/json`                | `{"code":"404","message":"El envío solicitado no existe."}`                            |
 ##### Example cURL
 

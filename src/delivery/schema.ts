@@ -2,6 +2,7 @@
 
 import { Document, model, Schema } from "mongoose";
 import * as env from "../server/environment";
+import { DeliveryEventStatusEnum } from "../enums/status.enum";
 // import { sendArticleValidation } from "../rabbit/deliveryService";
 
 const conf = env.getConfig(process.env);
@@ -37,10 +38,10 @@ export interface IDeliveryEvent extends Document {
   id: string;
   orderId: string;
   trackingNumber: number;
-  eventType: string;
+  eventType: DeliveryEventStatusEnum;
   lastKnownLocation: string;
-  updateDate: Date;
-  creationDate: Date;
+  updated: Date;
+  created: Date;
 }
 
 export interface IDeliveryProjection extends Document {
@@ -48,11 +49,11 @@ export interface IDeliveryProjection extends Document {
   orderId: string;
   userId: string;
   trackingNumber: number;
-  status: string;
+  status: DeliveryEventStatusEnum;
   lastKnownLocation: string;
   trackingEvents: ITrackingEvent[];
-  updateDate: Date;
-  creationDate: Date;
+  updated: Date;
+  created: Date;
   updateLocation: Function;
   // removeArticle: Function;
 }
@@ -64,8 +65,8 @@ export interface IFailedDeliveryProjection extends Document {
   trackingNumber: number;
   failedMessage: string,
   trackingEvents: ITrackingEvent[];
-  updateDate: Date;
-  creationDate: Date;
+  updated: Date;
+  created: Date;
 }
 
 /**
@@ -157,7 +158,7 @@ const DeliveryProjectionSchema = new Schema({
 DeliveryProjectionSchema.methods.updateLocation = function (event: IDeliveryEvent) {
 
   // Si no existe un evento con una fecha más actual, actualizamos el estado.  
-  if (!this.trackingEvents.find((e: IDeliveryEvent) => e.creationDate > event.creationDate)) {
+  if (!this.trackingEvents.find((e: IDeliveryEvent) => e.created > event.created)) {
     this.status = event.eventType;
     this.lastKnownLocation = event.lastKnownLocation;
   };
@@ -245,17 +246,17 @@ const FailedDeliveryProjectionSchema = new Schema({
  * Trigger antes de guardar
  */
 DeliveryEventSchema.pre("save", function (this: IDeliveryEvent, next) {
-  this.updateDate = new Date();
+  this.updated = new Date();
   next();
 });
-DeliveryProjectionSchema.pre("save", function (this: IDeliveryEvent, next) {
-  this.updateDate = new Date();
-  next();
-});
-FailedDeliveryProjectionSchema.pre("save", function (this: IDeliveryEvent, next) {
-  this.updateDate = new Date();
-  next();
-});
+// DeliveryProjectionSchema.pre("save", function (this: IDeliveryEvent, next) {
+//   this.updateDate = new Date();
+//   next();
+// });
+// FailedDeliveryProjectionSchema.pre("save", function (this: IDeliveryEvent, next) {
+//   this.updateDate = new Date();
+//   next();
+// });
 
 //TODO: Borrar
 export let Cart = model<IDeliveryEvent>("DeliveryEvent", DeliveryEventSchema);

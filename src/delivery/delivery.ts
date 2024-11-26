@@ -4,7 +4,7 @@ import * as async from "async";
 import { RestClient } from "typed-rest-client/RestClient";
 import * as env from "../server/environment";
 import * as error from "../server/error";
-import { Cart, DeliveryEvent, DeliveryProjection, ICart, ICartArticle, IDeliveryProjection } from "./schema";
+import { Cart, DeliveryEvent, DeliveryProjection, FailedDeliveryProjection, ICart, ICartArticle, IDeliveryEvent, IDeliveryProjection, ITrackingEvent } from "./schema";
 import { DeliveryEventStatusEnum } from "../enums/status.enum";
 // import { sendArticleValidation, sendPlaceOrder } from "../rabbit/deliveryService";
 
@@ -23,41 +23,185 @@ interface UpdateDeliveryRequest {
     lastKnownLocation: string;
     delivered: boolean;
 }
-export function updateDelivery(userId: string, trackingNumber: number, updateDeliveryRequest: UpdateDeliveryRequest): Promise<IDeliveryProjection> {
+
+interface IOrderResponse {
+    created: string,
+    orderId: string,
+    status: string,
+    userId: string
+}
+
+/**
+ * Obtener los datos de la orden desde el servicio de orders.
+ */
+export function getOrderInfo(orderId: string, token: string): Promise<IOrderResponse> {
+    const restClient: RestClient = new RestClient("GetOrderInfo", conf.orderServer);
+
+    return restClient.get<any>("/v1/orders/" + orderId,
+        { additionalHeaders: { "Authorization": token.replace("Bearer", "bearer") } }).then(
+            (data) => {
+                if (data.result.error)
+                    throw error.newError(error.ERROR_INTERNAL_ERROR, data.result.error)
+                return data.result as IOrderResponse
+            }
+        ).catch(exception => {
+            throw error.newError(error.ERROR_INTERNAL_ERROR, exception.message || "Hubo un error al consultar el servicio de ordenes.")
+        });
+}
+
+function inconsistentTransitionError(originStatus: string, destinationStatus: string) {
+    return { message: `La transición ${originStatus} -> ${destinationStatus} es inconsistente.` }
+}
+
+/**
+ * Crea la proyección del envío en base al trackingNumber enviado
+ * 
+ * @param token token obtenido del request para poder consultar otros microservicios
+ * @param trackingNumber trackingNumber a utilizar para generar la proyección
+ * @returns 
+ */
+export async function projectDelivery(token: string, trackingNumber: number) {
+
+    //Borramos cualquier proyección que exista para el trackingNumber
+    await DeliveryProjection.deleteMany({ trackingNumber: trackingNumber })
+
+    return await DeliveryEvent.find({
+        trackingNumber
+    }).sort("created").then(async (events) => {
+        const order = await getOrderInfo(events[0].orderId, token)
+
+        //Creamos una nueva proyección para el envío
+        const projection = new DeliveryProjection({
+            trackingNumber: trackingNumber,
+            userId: order.userId,
+            orderId: order.orderId,
+            status: DeliveryEventStatusEnum.PENDING,
+            creationDate: new Date(),
+        })
+
+        //Se cargan todos los eventos a la proyección.
+        projection.trackingEvents = events.map(event => {
+            return {
+                eventType: event.eventType,
+                locationName: event.lastKnownLocation,
+                updateDate: event.created,
+            }
+        });
+
+        //Recorremos los eventos y vamos aplicandolos a la proyección
+        try {
+            for (const event of events) {
+                if (projection.orderId !== event.orderId)
+                    throw { message: `Existen varios orderId para el mismo trackingNumber: [${projection.orderId}, ${event.orderId}]` }
+
+                switch (event.eventType) {
+                    case DeliveryEventStatusEnum.PENDING:
+                        if (projection.status !== DeliveryEventStatusEnum.PENDING)
+                            throw inconsistentTransitionError(projection.status, event.eventType)
+                        break;
+
+                    case DeliveryEventStatusEnum.TRANSIT:
+                        if (![DeliveryEventStatusEnum.PENDING, DeliveryEventStatusEnum.TRANSIT].includes(projection.status))
+                            throw inconsistentTransitionError(projection.status, event.eventType)
+                        break;
+
+                    case DeliveryEventStatusEnum.CANCELED:
+                    case DeliveryEventStatusEnum.DELIVERED:
+                        if (projection.status !== DeliveryEventStatusEnum.TRANSIT)
+                            throw inconsistentTransitionError(projection.status, event.eventType)
+                        break;
+                    case DeliveryEventStatusEnum.PENDING_RETURN:
+                        if (projection.status !== DeliveryEventStatusEnum.DELIVERED)
+                            throw inconsistentTransitionError(projection.status, event.eventType)
+                        break;
+                    case DeliveryEventStatusEnum.TRANSIT_RETURN:
+                        if (![DeliveryEventStatusEnum.TRANSIT_RETURN, DeliveryEventStatusEnum.RETURNED].includes(projection.status))
+                            throw inconsistentTransitionError(projection.status, event.eventType)
+                        break;
+                    case DeliveryEventStatusEnum.RETURNED:
+                        if (projection.status !== DeliveryEventStatusEnum.DELIVERED)
+                            throw inconsistentTransitionError(projection.status, event.eventType)
+                        break;
+
+                    default:
+                        throw { message: `Estado desconocido: ${event.eventType}` }
+                        break;
+                }
+                // Actualizamos la proyección
+                projection.status = event.eventType;
+                projection.lastKnownLocation = event.lastKnownLocation;
+                projection.updated = event.updated
+
+            }
+            //Guardamos la proyección
+            await projection.save()
+        } catch (err: any) {
+            // Generamos la proyección fallida
+            await new FailedDeliveryProjection({
+                orderId: projection.orderId,
+                userId: projection.userId,
+                trackingNumber: projection.trackingNumber,
+                failedMessage: err.message,
+                trackingEvents: projection.trackingEvents,
+                created: new Date()
+            }).save()
+            throw error.newError(error.ERROR_INTERNAL_ERROR, `Hubo un error al calcular el estado del envío.`)
+        }
+
+        //Retornamos la proyección
+        return projection;
+    })
+}
+
+export function updateDelivery(token: string, trackingNumber: number, updateDeliveryRequest: UpdateDeliveryRequest): Promise<IDeliveryEvent> {
     return new Promise((resolve, reject) => {
 
-        //Calcular proyección.
-        DeliveryProjection.findOne({
+        DeliveryEvent.findOne({
             trackingNumber: trackingNumber
-        }, function (err: any, projection: IDeliveryProjection) {
-            if (err) return reject(err)
+        }, function (err: any, event: IDeliveryEvent) {
+            if (err) return reject(err);
+            //Si no existe ningún evento con el trackingNumber, devolvemos error
+            if (!event) return reject(error.newError(error.ERROR_NOT_FOUND, "El envío solicitado no existe."));
 
-            //Si no hay proyección, la creamos
-            if (!projection) {
-                projection = new DeliveryProjection();
-                projection.orderId = "Hay que calcularlo";
-                projection.userId = "Hay que calcularlo";
-                projection.trackingNumber = trackingNumber;
-                projection.status = updateDeliveryRequest.delivered ? DeliveryEventStatusEnum.DELIVERED : DeliveryEventStatusEnum.TRANSIT;
-                projection.lastKnownLocation = updateDeliveryRequest.lastKnownLocation;
-                projection.trackingEvents = [];
-                projection.creationDate = new Date()
+            projectDelivery(token, trackingNumber).then(projection => {
+                //Se crea el nuevo evento.
+                const newEvent = new DeliveryEvent()
+
+                switch (projection.status) {
+                    case DeliveryEventStatusEnum.PENDING:
+                    case DeliveryEventStatusEnum.TRANSIT:
+                        newEvent.eventType = updateDeliveryRequest.delivered ? DeliveryEventStatusEnum.DELIVERED : DeliveryEventStatusEnum.TRANSIT
+                        break;
+                    case DeliveryEventStatusEnum.PENDING_RETURN:
+                        if (updateDeliveryRequest.delivered)
+                            throw error.newError(error.ERROR_INTERNAL_ERROR, `No se puede entregar al cliente si el envío está pendiente de devolución.`)
+                    case DeliveryEventStatusEnum.TRANSIT_RETURN:
+                        newEvent.eventType = updateDeliveryRequest.delivered ? DeliveryEventStatusEnum.RETURNED : DeliveryEventStatusEnum.TRANSIT_RETURN
+                        break;
+                    default:
+                        throw error.newError(error.ERROR_INTERNAL_ERROR, `El envío no puede actualizar su ubicación.`)
+
+                }
+
+                //Se actualizan los campos del nuevo evento
+                newEvent.lastKnownLocation = updateDeliveryRequest.lastKnownLocation;
+                newEvent.orderId = projection.orderId;
+                newEvent.trackingNumber = trackingNumber;
+                newEvent.created = new Date();
+
+                //Se actualiza el estado de la proyección
+                projection.status = newEvent.eventType;
+
+                //Se guarda el nuevo evento y la proyección
+                newEvent.save()
                 projection.save()
-            }
 
-            //Crear evento
-            const event = new DeliveryEvent()
-            event.orderId = "Hay que calcularlo";
-            event.trackingNumber = trackingNumber;
-            event.eventType = updateDeliveryRequest.delivered ? DeliveryEventStatusEnum.DELIVERED : DeliveryEventStatusEnum.TRANSIT;
-            event.lastKnownLocation = updateDeliveryRequest.lastKnownLocation;
-            event.creationDate = new Date();
+                resolve(newEvent)
+            }).catch(err => {
+                reject(err)
+            })
 
-            event.save()
-            //Update projection
-            .then(event => projection.updateLocation(event))
-            // Retornamos la projección
-            .then(e => resolve(projection))
+
         });
     });
 }

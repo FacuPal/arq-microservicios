@@ -2,27 +2,31 @@
 
 import { Express } from "express";
 import * as token from "../token";
+//TODO: Cambiar esto a delivery
 import * as cart from "../delivery";
 import * as error from "./error";
 import * as express from "express";
 import { NextFunction } from "connect";
+import { userInfo } from "os";
 
 /**
  * Modulo de seguridad, login/logout, cambio de contraseñas, etc
  */
 export function init(app: Express) {
+  //Autenticamos todos los endpoints
+  app.use(validateToken);
   // Listar los envíos del sistema (Admin)
-  app.route("/v1/delivery").get(validateToken, listDeliveries);
+  app.route("/v1/delivery").get(listDeliveries);
   // Obtener ubicación del envío
-  app.route("/v1/delivery/:trackingNumber").get(validateToken, getDelivery);
+  app.route("/v1/delivery/:trackingNumber").get(getDelivery);
   //Actualizar la ubicación del envío
-  app.route("/v1/delivery/:trackingNumber").put(validateToken, updateDelivery);
+  app.route("/v1/delivery/:trackingNumber").put(validateAdminAccess, updateDelivery);
   //Cancelar un envío (Admin)
-  app.route("/v1/delivery/:trackingNumber").delete(validateToken, cancelDelivery);
+  app.route("/v1/delivery/:trackingNumber").delete(cancelDelivery);
   //Solicitar devolución de un envío
-  app.route("/v1/delivery/:trackingNumber/return").post(validateToken, returnDelivery);
+  app.route("/v1/delivery/:trackingNumber/return").post(returnDelivery);
   //Realizar proyección de un envío (Admin)
-  app.route("/v1/delivery/:trackingNumber/project").post(validateToken, projectDelivery);
+  app.route("/v1/delivery/:trackingNumber/project").post(projectDelivery);
 }
 
 interface IUserSessionRequest extends express.Request {
@@ -52,6 +56,23 @@ function validateToken(req: IUserSessionRequest, res: express.Response, next: Ne
     .catch(err => error.handle(res, err));
 }
 
+/**
+ * @apiDefine AdminAccess
+ *
+ * @apiExample {String} Header Autorización
+ *    Authorization=bearer {token}
+ *
+ * @apiErrorExample 403 Forbidden
+ *    HTTP/1.1 403 Forbidden
+ */
+function validateAdminAccess(req: IUserSessionRequest, res: express.Response, next: NextFunction) {
+  //Validamos que sea admin
+  if (!req.user.user.permissions.includes("admin"))
+    return error.handle(res, error.newError(error.ERROR_FORBIDDEN, "No cuenta con los permisos para acceder a este recurso."));
+  next()
+}
+
+
 function listDeliveries(req: IUserSessionRequest, res: express.Response) {
   cart.addArticle(req.user.user.id, req.body)
     .then(cart => {
@@ -73,9 +94,12 @@ function getDelivery(req: IUserSessionRequest, res: express.Response) {
 }
 
 function updateDelivery(req: IUserSessionRequest, res: express.Response) {
-  cart.updateDelivery(req.user.user.id, parseInt(req.params.trackingNumber), req.body)
+  //Llamamos al actualizar envío
+  cart.updateDelivery(req.user.token, parseInt(req.params.trackingNumber), req.body)
     .then(projection => {
-      res.json(projection);
+      res.json({
+        message: "Ubicación actualizada exitósamente."
+      });
     })
     .catch(err => {
       error.handle(res, err);

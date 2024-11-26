@@ -60,6 +60,7 @@ export function createDelivery(data: ICreateDelivery) {
         new DeliveryEvent({
             orderId: data.orderId,
             trackingNumber: newTrackingNumber,
+            userId: data.userId,
             eventType: DeliveryEventStatusEnum.PENDING,
             creationDate: new Date()
         }).save()

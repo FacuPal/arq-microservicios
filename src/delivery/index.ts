@@ -10,7 +10,8 @@ export {
 } from "./cart";
 
 export {
-    updateDelivery
+    updateDelivery,
+    getOrderInfo
 } from "./delivery"
 
 export {

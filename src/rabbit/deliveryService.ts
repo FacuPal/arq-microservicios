@@ -45,12 +45,6 @@ export function init() {
 function processCreateDelivery(rabbitMessage: IRabbitMessage) {
     const event = rabbitMessage.message as ICreateDeliveryMessage;
     createDelivery(event)
-    // const notification = {
-	// 	notificationType: "delivery_created",
-	// 	userId: "234123",
-	// 	trackingNumber: "12341324"
-	// }
-    // sendNotification(notification)
 }
 
 
@@ -68,7 +62,7 @@ function processCreateDelivery(rabbitMessage: IRabbitMessage) {
  *         "message": {
  *             "notificationType": "{notificationType}",
  *             "userId": "{userId}",
- *             "trackingNumber": "{trackingNumber}"
+ *             "trackingNumber": {trackingNumber}
  *        }
  *     }
  */

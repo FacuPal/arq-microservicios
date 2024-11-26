@@ -4,6 +4,7 @@ import * as express from "express";
 import { NextFunction } from "express-serve-static-core";
 
 export const ERROR_UNAUTHORIZED = 401;
+export const ERROR_FORBIDDEN = 403;
 export const ERROR_NOT_FOUND = 404;
 export const ERROR_BAD_REQUEST = 400;
 export const ERROR_INTERNAL_ERROR = 500;
