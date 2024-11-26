@@ -211,37 +211,6 @@ const FailedDeliveryProjectionSchema = new Schema({
 });
 
 
-
-// /**
-//  * Elimina un articulo del carrito
-//  */
-// CartSchema.methods.removeArticle = function (articleId: string) {
-//   for (let _i = 0; _i < this.articles.length; _i++) {
-//     const element: ICartArticle = this.articles[_i];
-
-//     if (element.articleId === articleId) {
-//       this.articles.splice(_i, 1);
-//       return;
-//     }
-//   }
-// };
-
-// /**
-//  * Decremento o Elimina un articulo del carrito
-//  */
-// CartSchema.methods.decrementArticle = function (article: ICartArticle) {
-//   for (let _i = 0; _i < this.articles.length; _i++) {
-//     const element: ICartArticle = this.articles[_i];
-//     if (element.articleId == article.articleId) {
-//       element.quantity--;
-//       if (element.quantity <= 0) {
-//         this.articles.splice(_i, 1);
-//       }
-//       return;
-//     }
-//   }
-// };
-
 /**
  * Trigger antes de guardar
  */
@@ -249,17 +218,6 @@ DeliveryEventSchema.pre("save", function (this: IDeliveryEvent, next) {
   this.updated = new Date();
   next();
 });
-// DeliveryProjectionSchema.pre("save", function (this: IDeliveryEvent, next) {
-//   this.updateDate = new Date();
-//   next();
-// });
-// FailedDeliveryProjectionSchema.pre("save", function (this: IDeliveryEvent, next) {
-//   this.updateDate = new Date();
-//   next();
-// });
-
-//TODO: Borrar
-export let Cart = model<IDeliveryEvent>("DeliveryEvent", DeliveryEventSchema);
 
 export let DeliveryEvent = model<IDeliveryEvent>("DeliveryEvent", DeliveryEventSchema);
 export let DeliveryProjection = model<IDeliveryProjection>("DeliveryProjection", DeliveryProjectionSchema);

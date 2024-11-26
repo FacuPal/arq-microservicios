@@ -23,7 +23,8 @@ export function getConfig(environment: any): Config {
       securityServer: process.env.AUTH_SERVICE_URL || "http://localhost:3000",
       catalogServer: process.env.CATALOG_SERVICE_URL || "http://localhost:3002",
       orderServer: process.env.ORDER_SERVICE_URL || "http://localhost:3004",
-      rabbitUrl: process.env.RABBIT_URL || "amqp://localhost"
+      rabbitUrl: process.env.RABBIT_URL || "amqp://localhost",
+      rowsPerPage: parseInt(process.env.ROWS_PER_PAGE) || 2,
     };
   }
   return config;
@@ -38,4 +39,5 @@ export interface Config {
   catalogServer: string;
   orderServer: string;
   rabbitUrl: string;
+  rowsPerPage: number;
 }

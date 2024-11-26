@@ -74,20 +74,4 @@ export function createDelivery(data: ICreateDelivery) {
             userId: data.userId
         })
     });
-
-
-
-
-
-    // Cart.findById(data.cartId, function (err: any, cart: ICart) {
-    //     if (err) return;
-
-    //     if (cart) {
-    //         cart.orderId = data.orderId;
-
-    //         // Save the Cart
-    //         cart.save(function (err: any) {
-    //         });
-    //     }
-    // });
 }

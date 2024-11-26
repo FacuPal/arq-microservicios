@@ -1,13 +1,5 @@
 "use strict";
 
-export {
-    currentCart,
-    addArticle,
-    decrementArticle,
-    deleteArticle,
-    validateCheckout,
-    placeOrder,
-} from "./cart";
 
 export {
     updateDelivery,
@@ -18,8 +10,3 @@ export {
     projectDelivery,
     listDeliveries
 } from "./delivery"
-
-export {
-    IArticleExistMessage,
-    articleValidationCheck
-} from "./validation";

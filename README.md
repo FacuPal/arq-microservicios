@@ -433,7 +433,7 @@ graph TD;
 
 > | http code     | content-type                      | response                                                            |
 > |---------------|-----------------------------------|---------------------------------------------------------------------|
-> | `200`         | `application/json`	| `{"data":[{"orderId":"1234", "status": "TRANSIT", "lastKnowLocation": "Agencia 1"}], "page": 1}`
+> | `200`         | `application/json`	| `{"data":[{"trackingNumber":1234, "status": "TRANSIT", "lastKnowLocation": "Agencia 1", created: "2024-11-26T12:30:15.091Z"}], "page": 1}`
 > | `403`         | `application/json`                | `{"code":"403","message":"No cuenta con los permisos para acceder al recurso."}`                            |
 > | `500`         | `application/json`                | `{"code":"500","message":"Hubo un error al listar los envíos del sistema."}`                            |
 
@@ -450,18 +450,20 @@ graph TD;
 >{
 >   "data": [
 >       {
->           "orderId":"1234", 
+>           "trackingNumber": 1234, 
 >           "status": "TRANSIT", 
->           "lastKnowLocation": "Agencia 1"
+>           "lastKnowLocation": "Agencia 1",
+>		  	"created": "2024-11-26T12:30:15.091Z"
 >       }, {
->           "orderId":"1235", 
->           "status": 
->           "DELIVERED", 
->           "lastKnowLocation": "Calle falsa 123"
+>           "trackingNumber": 1235, 
+>           "status": "DELIVERED", 
+>           "lastKnowLocation": "Calle falsa 123",
+>			"created": "2024-11-26T12:30:15.091Z"
 >       }, {
->           "orderId":"1236", 
+>           "trackingNumber": 1236, 
 >           "status": "PENDING_RETURN", 
->           "lastKnowLocation": "Av. Siempreviva 742"
+>           "lastKnowLocation": "Av. Siempreviva 742",
+>			"created": "2024-11-26T12:30:15.091Z"
 >       }
 >   ],
 >   "page": 1

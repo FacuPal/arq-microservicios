@@ -1,24 +1,13 @@
 "use strict";
 
-import * as async from "async";
 import { RestClient } from "typed-rest-client/RestClient";
 import * as env from "../server/environment";
 import * as error from "../server/error";
-import { Cart, DeliveryEvent, DeliveryProjection, FailedDeliveryProjection, ICart, ICartArticle, IDeliveryEvent, IDeliveryProjection, ITrackingEvent } from "./schema";
+import { DeliveryEvent, DeliveryProjection, FailedDeliveryProjection, IDeliveryEvent, IDeliveryProjection, ITrackingEvent } from "./schema";
 import { DeliveryEventStatusEnum } from "../enums/status.enum";
 import { sendNotification } from "../rabbit/deliveryService";
-// import { sendArticleValidation, sendPlaceOrder } from "../rabbit/deliveryService";
 
 const conf = env.getConfig(process.env);
-
-interface CartValidationItem {
-    articleId: string;
-    message: string;
-}
-interface ICartValidation {
-    errors: CartValidationItem[];
-    warnings: CartValidationItem[];
-}
 
 interface IOrderResponse {
     created: string,
@@ -310,49 +299,53 @@ export function returnDelivery(token: string, userId: string, trackingNumber: nu
 }
 
 interface IListDeliveriesFilters {
-    status?: DeliveryEventStatusEnum,
-    startDate?: Date,
-    endDate?: Date,
-    page?: number,
+    status?: string,
+    startDate?: string,
+    endDate?: string,
+    page?: string,
 }
 
-export function listDeliveries(filters: IListDeliveriesFilters): Promise<void> {
-    return new Promise((resolve, reject) => {
+export function listDeliveries(filters: IListDeliveriesFilters): Promise<IDeliveryEvent[]> {
+    const filter = {
+        $match: {}
+    };
 
+    if (filters.startDate || filters.endDate)
+        filter.$match = {
+            ...filter.$match,
+            "created": {
+                ...(filters.startDate && {
+                    $gte: new Date(filters.startDate)
+                }),
+                ...(filters.endDate && {
+                    $lte: new Date(filters.endDate)
+                }),
+            }
+        };
+
+    if (filters.status)
+        filter.$match = {
+            ...filter.$match,
+            "status": filters.status
+        };
+
+    return new Promise((resolve, reject) => {
+        DeliveryEvent.aggregate([{
+            $group: {
+                _id: "$trackingNumber",
+                trackingNumber: { $first: "$trackingNumber"},
+                created: { $min: "$created" },
+                status: { $last: "$eventType" },
+                lastKnownLocation: { $last: "$lastKnownLocation"}
+            },
+        },
+            filter
+        ])
+            //Saltamos a la página indicada por el filtro. Sino se toma por defecto la primera página.
+            .skip(conf.rowsPerPage * (parseInt(filters.page ?? "1") - 1))
+            //Numero de registros por página
+            .limit(conf.rowsPerPage)
+            .then(list => resolve(list))
+            .catch(err => reject(err))
     })
-}
-
-/**
- * @api {post} /v1/cart/checkout Checkout
- * @apiName Checkout
- * @apiGroup Carrito
- *
- * @apiDescription Realiza el checkout del carrito.
- *
- * @apiSuccessExample {string} Body
- *    HTTP/1.1 200 Ok
- *
- * @apiUse ParamValidationErrors
- * @apiUse OtherErrors
- */
-export function placeOrder(userId: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-        // currentCart(userId)
-        //     .then(cart => {
-        //         if (cart.articles.length == 0) {
-        //             reject(error.newError(
-        //                 400,
-        //                 "No posee items"
-        //             ));
-        //         }
-        //         cart.enabled = false;
-        //         // Save the Cart
-        //         cart.save(function (err: any) {
-        //             if (err) return reject(err);
-
-        //             // sendPlaceOrder(cart);
-        //             resolve();
-        //         });
-        //     }).catch(err => reject(err));
-    });
 }

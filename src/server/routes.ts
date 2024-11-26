@@ -2,12 +2,10 @@
 
 import { Express } from "express";
 import * as token from "../token";
-//TODO: Cambiar esto a delivery
-import * as cart from "../delivery";
+import * as delivery from "../delivery";
 import * as error from "./error";
 import * as express from "express";
 import { NextFunction } from "connect";
-import { userInfo } from "os";
 import { DeliveryEventStatusEnum } from "../enums/status.enum";
 
 /**
@@ -73,18 +71,28 @@ function validateAdminAccess(req: IUserSessionRequest, res: express.Response, ne
   next()
 }
 
-interface IGetDeliveryRequest extends IUserSessionRequest {
-  body: {
-    status?: DeliveryEventStatusEnum,
-    startDate?: Date,
-    endDate?: Date,
-    page?: number,
+interface IListDeliveriesRequest extends IUserSessionRequest {
+  query: {
+    status?: string,
+    startDate?: string,
+    endDate?: string,
+    page?: string,
   }
 }
-function listDeliveries(req: IUserSessionRequest, res: express.Response) {
-  cart.listDeliveries(req.body)
+function listDeliveries(req: IListDeliveriesRequest, res: express.Response) {
+  delivery.listDeliveries(req.query)
     .then(deliveries => {
-      res.json(deliveries);
+      res.json({
+        data: deliveries.map((delivery: any) => {
+          return {
+            trackingNumber: delivery.trackingNumber,
+            status: delivery.status,
+            lastKnownLocation: delivery.lastKnownLocation,
+            created: delivery.created
+          }
+        }),
+        page: req.query.page ?? "1"
+      });
     })
     .catch(err => {
       error.handle(res, err);
@@ -98,14 +106,14 @@ interface IGetDeliveryRequest extends IUserSessionRequest {
   }
 }
 function getDelivery(req: IGetDeliveryRequest, res: express.Response) {
-  cart.getDelivery(
+  delivery.getDelivery(
     req.user.token,
     req.user.user.id,
     req.user.user.permissions.includes("admin"),
     parseInt(req.params.trackingNumber)
   )
-    .then(cart => {
-      res.json(cart);
+    .then(delivery => {
+      res.json(delivery);
     })
     .catch(err => {
       error.handle(res, err);
@@ -123,8 +131,8 @@ interface IUpdateDeliveryRequest extends IUserSessionRequest {
 }
 function updateDelivery(req: IUpdateDeliveryRequest, res: express.Response) {
   //Llamamos al actualizar envío
-  cart.updateDelivery(req.user.token, parseInt(req.params.trackingNumber), req.body)
-    .then(projection => {
+  delivery.updateDelivery(req.user.token, parseInt(req.params.trackingNumber), req.body)
+    .then(() => {
       res.json({
         message: "Ubicación actualizada exitósamente."
       });
@@ -140,7 +148,7 @@ interface ICancelDeliveryRequest extends IUserSessionRequest {
   }
 }
 function cancelDelivery(req: ICancelDeliveryRequest, res: express.Response) {
-  cart.cancelDelivery(req.user.token, parseInt(req.params.trackingNumber))
+  delivery.cancelDelivery(req.user.token, parseInt(req.params.trackingNumber))
     .then(() => {
       res.json({
         message: `Envío cancelado exitósamente`,
@@ -157,7 +165,7 @@ interface IReturnDeliveryRequest extends IUserSessionRequest {
   }
 }
 function returnDelivery(req: IReturnDeliveryRequest, res: express.Response) {
-  cart.returnDelivery(req.user.token, req.user.user.id, parseInt(req.params.trackingNumber))
+  delivery.returnDelivery(req.user.token, req.user.user.id, parseInt(req.params.trackingNumber))
     .then(() => {
       res.json({
         message: `Se solicitó la devolución de manera exitosa.`,
@@ -174,7 +182,7 @@ interface IProjectDeliveryRequest extends IUserSessionRequest {
   }
 }
 function projectDelivery(req: IProjectDeliveryRequest, res: express.Response) {
-  cart.projectDelivery(req.user.token, parseInt(req.params.trackingNumber))
+  delivery.projectDelivery(req.user.token, parseInt(req.params.trackingNumber))
     .then(projection => {
       res.json(projection);
     })
@@ -186,7 +194,7 @@ function projectDelivery(req: IProjectDeliveryRequest, res: express.Response) {
 
 
 /**
- * @api {post} /v1/cart/article Agregar Artículo
+ * @api {post} /v1/delivery/article Agregar Artículo
  * @apiName Agregar Artículo
  * @apiGroup Carrito
  *
@@ -211,22 +219,22 @@ function projectDelivery(req: IProjectDeliveryRequest, res: express.Response) {
  * @apiUse ParamValidationErrors
  * @apiUse OtherErrors
  */
-function addArticle(req: IUserSessionRequest, res: express.Response) {
-  cart.addArticle(req.user.user.id, req.body)
-    .then(cart => {
-      res.json(cart);
-    })
-    .catch(err => {
-      error.handle(res, err);
-    });
-}
+// function addArticle(req: IUserSessionRequest, res: express.Response) {
+//   delivery.addArticle(req.user.user.id, req.body)
+//     .then(delivery => {
+//       res.json(delivery);
+//     })
+//     .catch(err => {
+//       error.handle(res, err);
+//     });
+// }
 
 /**
- * @api {post} /v1/cart/article/:articleId/decrement Decrementar
- * @apiName Decrementar Cart
+ * @api {post} /v1/delivery/article/:articleId/decrement Decrementar
+ * @apiName Decrementar delivery
  * @apiGroup Carrito
  *
- * @apiDescription Decrementa la cantidad de artículos en el cart.
+ * @apiDescription Decrementa la cantidad de artículos en el delivery.
  *
  * @apiSuccessExample {json} Body
  *    {
@@ -247,22 +255,22 @@ function addArticle(req: IUserSessionRequest, res: express.Response) {
  * @apiUse ParamValidationErrors
  * @apiUse OtherErrors
  */
-function decrementArticle(req: IUserSessionRequest, res: express.Response) {
-  cart.decrementArticle(req.user.user.id, req.body)
-    .then(cart => {
-      res.json(cart);
-    })
-    .catch(err => {
-      error.handle(res, err);
-    });
-}
+// function decrementArticle(req: IUserSessionRequest, res: express.Response) {
+//   delivery.decrementArticle(req.user.user.id, req.body)
+//     .then(delivery => {
+//       res.json(delivery);
+//     })
+//     .catch(err => {
+//       error.handle(res, err);
+//     });
+// }
 
 /**
- * @api {post} /v1/cart/article/:articleId/increment Incrementar
- * @apiName Incrementar Cart
+ * @api {post} /v1/delivery/article/:articleId/increment Incrementar
+ * @apiName Incrementar delivery
  * @apiGroup Carrito
  *
- * @apiDescription Incrementa la cantidad de artículos en el cart.
+ * @apiDescription Incrementa la cantidad de artículos en el delivery.
  *
  * @apiSuccessExample {json} Body
  *    {
@@ -284,18 +292,18 @@ function decrementArticle(req: IUserSessionRequest, res: express.Response) {
  * @apiUse ParamValidationErrors
  * @apiUse OtherErrors
  */
-function incrementArticle(req: IUserSessionRequest, res: express.Response) {
-  cart.addArticle(req.user.user.id, req.body)
-    .then(cart => {
-      res.json(cart);
-    })
-    .catch(err => {
-      error.handle(res, err);
-    });
-}
+// function incrementArticle(req: IUserSessionRequest, res: express.Response) {
+//   delivery.addArticle(req.user.user.id, req.body)
+//     .then(delivery => {
+//       res.json(delivery);
+//     })
+//     .catch(err => {
+//       error.handle(res, err);
+//     });
+// }
 
 /**
- * @api {get} /v1/cart Obtener Carrito
+ * @api {get} /v1/delivery Obtener Carrito
  * @apiName Obtener Carrito
  * @apiGroup Carrito
  *
@@ -314,18 +322,18 @@ function incrementArticle(req: IUserSessionRequest, res: express.Response) {
  * @apiUse ParamValidationErrors
  * @apiUse OtherErrors
  */
-function getCart(req: IUserSessionRequest, res: express.Response) {
-  cart.currentCart(req.user.user.id)
-    .then(cart => {
-      res.json(cart);
-    })
-    .catch(err => {
-      error.handle(res, err);
-    });
-}
+// function getdelivery(req: IUserSessionRequest, res: express.Response) {
+//   delivery.currentdelivery(req.user.user.id)
+//     .then(delivery => {
+//       res.json(delivery);
+//     })
+//     .catch(err => {
+//       error.handle(res, err);
+//     });
+// }
 
 /**
- * @api {delete} /cart/article/:articleId Quitar Artículo
+ * @api {delete} /delivery/article/:articleId Quitar Artículo
  * @apiName Quitar Artículo
  * @apiGroup Carrito
  *
@@ -337,24 +345,24 @@ function getCart(req: IUserSessionRequest, res: express.Response) {
  * @apiUse ParamValidationErrors
  * @apiUse OtherErrors
  */
-function deleteArticle(req: IUserSessionRequest, res: express.Response) {
-  const articleId = escape(req.params.articleId);
+// function deleteArticle(req: IUserSessionRequest, res: express.Response) {
+//   const articleId = escape(req.params.articleId);
 
-  cart.deleteArticle(req.user.user.id, articleId)
-    .then(_ => {
-      res.send();
-    })
-    .catch(err => {
-      error.handle(res, err);
-    });
-}
+//   delivery.deleteArticle(req.user.user.id, articleId)
+//     .then(_ => {
+//       res.send();
+//     })
+//     .catch(err => {
+//       error.handle(res, err);
+//     });
+// }
 
 /**
- * @api {post} /v1/cart/validate Validar Carrito
+ * @api {post} /v1/delivery/validate Validar Carrito
  * @apiName Validar Carrito
  * @apiGroup Carrito
  *
- * @apiDescription Realiza una validación completa del cart, para realizar el checkout.
+ * @apiDescription Realiza una validación completa del delivery, para realizar el checkout.
  *
  * @apiSuccessExample {json} Body
  *   {
@@ -371,19 +379,19 @@ function deleteArticle(req: IUserSessionRequest, res: express.Response) {
  * @apiUse ParamValidationErrors
  * @apiUse OtherErrors
  */
-function validateCheckout(req: IUserSessionRequest, res: express.Response) {
-  cart.validateCheckout(req.user.user.id, req.user.token)
-    .then(validation => {
-      res.json(validation);
-    })
-    .catch(err => {
-      error.handle(res, err);
-    });
-}
+// function validateCheckout(req: IUserSessionRequest, res: express.Response) {
+//   delivery.validateCheckout(req.user.user.id, req.user.token)
+//     .then(validation => {
+//       res.json(validation);
+//     })
+//     .catch(err => {
+//       error.handle(res, err);
+//     });
+// }
 
 
 /**
- * @api {post} /v1/cart/checkout Checkout
+ * @api {post} /v1/delivery/checkout Checkout
  * @apiName Checkout
  * @apiGroup Carrito
  *
@@ -395,12 +403,12 @@ function validateCheckout(req: IUserSessionRequest, res: express.Response) {
  * @apiUse ParamValidationErrors
  * @apiUse OtherErrors
  */
-function postOrder(req: IUserSessionRequest, res: express.Response) {
-  cart.placeOrder(req.user.user.id)
-    .then(_ => {
-      res.send();
-    })
-    .catch(err => {
-      error.handle(res, err);
-    });
-}
+// function postOrder(req: IUserSessionRequest, res: express.Response) {
+//   delivery.placeOrder(req.user.user.id)
+//     .then(_ => {
+//       res.send();
+//     })
+//     .catch(err => {
+//       error.handle(res, err);
+//     });
+// }
