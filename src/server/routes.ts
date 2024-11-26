@@ -22,11 +22,11 @@ export function init(app: Express) {
   //Actualizar la ubicación del envío
   app.route("/v1/delivery/:trackingNumber").put(validateAdminAccess, updateDelivery);
   //Cancelar un envío (Admin)
-  app.route("/v1/delivery/:trackingNumber").delete(cancelDelivery);
+  app.route("/v1/delivery/:trackingNumber").delete(validateAdminAccess, cancelDelivery);
   //Solicitar devolución de un envío
   app.route("/v1/delivery/:trackingNumber/return").post(returnDelivery);
   //Realizar proyección de un envío (Admin)
-  app.route("/v1/delivery/:trackingNumber/project").post(projectDelivery);
+  app.route("/v1/delivery/:trackingNumber/project").post(validateAdminAccess, projectDelivery);
 }
 
 interface IUserSessionRequest extends express.Request {
@@ -104,7 +104,6 @@ function getDelivery(req: IGetDeliveryRequest, res: express.Response) {
     });
 }
 
-
 interface IUpdateDeliveryRequest extends IUserSessionRequest {
   params: {
     trackingNumber: string
@@ -127,11 +126,17 @@ function updateDelivery(req: IUpdateDeliveryRequest, res: express.Response) {
     });
 }
 
-
-function cancelDelivery(req: IUserSessionRequest, res: express.Response) {
-  cart.addArticle(req.user.user.id, req.body)
-    .then(cart => {
-      res.json(cart);
+interface ICancelDeliveryRequest extends IUserSessionRequest {
+  params: {
+    trackingNumber: string
+  }
+}
+function cancelDelivery(req: ICancelDeliveryRequest, res: express.Response) {
+  cart.cancelDelivery(req.user.token, parseInt(req.params.trackingNumber))
+    .then(() => {
+      res.json({
+        message: `Envío cancelado exitósamente`,
+      });
     })
     .catch(err => {
       error.handle(res, err);

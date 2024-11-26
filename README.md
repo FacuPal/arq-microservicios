@@ -74,13 +74,13 @@ graph TD;
 > - **Precondicion**: El usuario debe estar logueado y debe tener el perfil de Administrador.
 > - **Camino normal**:
 >	1. Se recibe un request por interfaz REST indicando la intención de cancelar un envío, utilizando el trackingNumber.
->	2. Se valida que el envío exista y le corresponda al usuario logueado. 
+>	2. Se valida que el envío exista. 
 >   3. Se recalcula la proyección del mismo y se valida que se encuentre en estado **"TRANSIT"**. Se guarda la proyección en la tabla *delivery_projection*, sobreescribiendola si existiera.
 >	4. Se registra el nuevo evento cambiando el estado a **"CANCELED"**.
 >	5. Se envía un mensaje por medio del exchange directo ***"send_notification"***, con tipo *delivery_canceled*, para que el servicio de notification realice la notificación.
 > - **Caminos alternativos**:
-> 	- Si el envío no existe o no le pertenece al usuario, se retorna error.
-> 	- Si el envío no está en estado **TRANSIT"**, se retorna error.
+> 	- Si el envío no existe, se retorna error.
+> 	- Si el envío no está en estado **TRANSIT"**, se retorna error indicando "No se puede cancelar un envío que no está en tránsito".
 ---
 >### CU-005: Solicitar devolución de un envío.
 > ---
@@ -292,6 +292,7 @@ graph TD;
 > |---------------|-----------------------------------|---------------------------------------------------------------------|
 > | `200`         | `application/json`       | `{"message":"Envío cancelado exitósamente."}`                               |
 > | `404`         | `application/json`                | `{"code":"404","message":"El envío solicitado no existe."}`                            |
+> | `500`         | `application/json`                | `{"code":"500","message":"No se puede cancelar un envío que no está en tránsito."}`                            |
 ##### Example cURL
 
 > ```

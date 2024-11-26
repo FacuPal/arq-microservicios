@@ -154,12 +154,12 @@ export async function projectDelivery(token: string, trackingNumber: number) {
 }
 
 
-interface UpdateDeliveryRequest {
+interface UpdateDeliveryBody {
     lastKnownLocation: string;
     delivered: boolean;
 }
 
-export function updateDelivery(token: string, trackingNumber: number, updateDeliveryRequest: UpdateDeliveryRequest): Promise<IDeliveryEvent> {
+export function updateDelivery(token: string, trackingNumber: number, updateDeliveryRequest: UpdateDeliveryBody): Promise<IDeliveryEvent> {
     return new Promise((resolve, reject) => {
 
         DeliveryEvent.findOne({
@@ -236,6 +236,33 @@ export function getDelivery(token: string, userId: string, isAdmin: boolean = fa
             else
                 resolve(projection)
         });
+    });
+}
+
+export function cancelDelivery(token: string, trackingNumber: number): Promise<void> {
+    return new Promise((resolve, reject) => {
+        projectDelivery(token, trackingNumber).then(projection => {
+            if (projection.status !== DeliveryEventStatusEnum.TRANSIT)
+                return reject(error.newError(error.ERROR_INTERNAL_ERROR, `No se puede cancelar un envío que no está en tránsito.`))
+            
+            //Creamos el nuevo evento
+            const newEvent = new DeliveryEvent({
+                orderId: projection.orderId,
+                trackingNumber: trackingNumber,
+                eventType: DeliveryEventStatusEnum.CANCELED,
+                created: new Date()
+            }).save().then(event => {
+                //Actualizamos la proyección
+                projection.status = event.eventType;
+                projection.trackingEvents.push({
+                    eventType: event.eventType,
+                    locationName: event.lastKnownLocation,
+                    updateDate: event.created
+                });
+                projection.save()
+            })
+            resolve(newEvent)
+        }).catch(err => reject(err))
     });
 }
 
