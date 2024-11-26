@@ -11,7 +11,8 @@ export {
 
 export {
     updateDelivery,
-    getOrderInfo
+    getOrderInfo,
+    getDelivery
 } from "./delivery"
 
 export {

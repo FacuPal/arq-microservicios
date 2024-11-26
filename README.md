@@ -61,12 +61,12 @@ graph TD;
 > - **Precondicion**: El usuario debe estar logueado. 
 > - **Camino normal**:
 >	1. Se recibe un request por interfaz REST solicitando la ubicación del envío utilizando el trackingNumber.
->	2. Se valida que el envío exista y que le pertenezca al usuario logueado.
+>	2. Se valida que el envío exista y que le pertenezca al usuario logueado o, en su defecto, que el usuario se admin.
 >	3. Se consulta la proyección del envío para finalmente devolver la información solicitada.
 > - **Caminos alternativos**:
 > 	- Si la proyección del envío no existe, se intenta recalcularla.
->   - Si el envío no existe, se retorna error.
-> 	- Si el envío existe y no le pertenece al usuario, se retorna error.
+>   - Si el envío no existe, se retorna error indicando "El envío solicitado no existe".
+> 	- Si el envío existe, no le pertenece al usuario y el usuario no es admin, se retorna error indicando "El envío ${trackingNumber} no le pertenece".
 ---
 ---
 > ### CU-004: Cancelar un envío.
@@ -189,6 +189,7 @@ graph TD;
 > | http code     | content-type        | response                                                            |
 > |---------------|---------------------|---------------------------------------------------------------------|
 > | `200`         | `application/json`	| `{"orderId":"1234", "status": "TRANSIT", "lastKnowLocation": "Agencia 1", "deliveryEvents": [{ "updateDate": "2024-11-10", "lastKnownLocation": "Agencia 1", "eventType": "TRANSIT"}]}`                               |
+> | `403`         | `application/json`	| `{"code":"403","message":"El envío ${trackingNumber} no le pertenece."}`                            |
 > | `404`         | `application/json`	| `{"code":"404","message":"El envío solicitado no existe."}`                            |
 ##### Example cURL
 
@@ -250,6 +251,7 @@ graph TD;
 > | `200`         | `application/json`       | `{"message":"Ubicación actualizada exitósamente."}`                               |
 > | `403`         | `application/json`                | `{"code": 403,"error": "No cuenta con los permisos para acceder a este recurso."}`                            |
 > | `404`         | `application/json`                | `{"code":"404","message":"El envío solicitado no existe."}`                            |
+> | `500`         | `application/json`                | `{"code":"500","message":"No se puede entregar al cliente si el envío está pendiente de devolución."}`                            |
 ##### Example cURL
 
 > ```

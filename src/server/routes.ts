@@ -83,8 +83,19 @@ function listDeliveries(req: IUserSessionRequest, res: express.Response) {
     });
 }
 
-function getDelivery(req: IUserSessionRequest, res: express.Response) {
-  cart.addArticle(req.user.user.id, req.body)
+
+interface IGetDeliveryRequest extends IUserSessionRequest {
+  params: {
+    trackingNumber: string
+  }
+}
+function getDelivery(req: IGetDeliveryRequest, res: express.Response) {
+  cart.getDelivery(
+    req.user.token,
+    req.user.user.id,
+    req.user.user.permissions.includes("admin"),
+    parseInt(req.params.trackingNumber)
+  )
     .then(cart => {
       res.json(cart);
     })
@@ -93,7 +104,17 @@ function getDelivery(req: IUserSessionRequest, res: express.Response) {
     });
 }
 
-function updateDelivery(req: IUserSessionRequest, res: express.Response) {
+
+interface IUpdateDeliveryRequest extends IUserSessionRequest {
+  params: {
+    trackingNumber: string
+  },
+  body: {
+    lastKnownLocation: string,
+    delivered: boolean,
+  }
+}
+function updateDelivery(req: IUpdateDeliveryRequest, res: express.Response) {
   //Llamamos al actualizar envío
   cart.updateDelivery(req.user.token, parseInt(req.params.trackingNumber), req.body)
     .then(projection => {

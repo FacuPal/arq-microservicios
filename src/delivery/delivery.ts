@@ -6,6 +6,7 @@ import * as env from "../server/environment";
 import * as error from "../server/error";
 import { Cart, DeliveryEvent, DeliveryProjection, FailedDeliveryProjection, ICart, ICartArticle, IDeliveryEvent, IDeliveryProjection, ITrackingEvent } from "./schema";
 import { DeliveryEventStatusEnum } from "../enums/status.enum";
+import { sendNotification } from "../rabbit/deliveryService";
 // import { sendArticleValidation, sendPlaceOrder } from "../rabbit/deliveryService";
 
 const conf = env.getConfig(process.env);
@@ -17,11 +18,6 @@ interface CartValidationItem {
 interface ICartValidation {
     errors: CartValidationItem[];
     warnings: CartValidationItem[];
-}
-
-interface UpdateDeliveryRequest {
-    lastKnownLocation: string;
-    delivered: boolean;
 }
 
 interface IOrderResponse {
@@ -68,6 +64,10 @@ export async function projectDelivery(token: string, trackingNumber: number) {
     return await DeliveryEvent.find({
         trackingNumber
     }).sort("created").then(async (events) => {
+        // Validamos que el envío exista
+        if (events.length === 0 )
+            throw error.newError(error.ERROR_NOT_FOUND, `El envío solicitado no existe.`)
+
         const order = await getOrderInfo(events[0].orderId, token)
 
         //Creamos una nueva proyección para el envío
@@ -153,6 +153,12 @@ export async function projectDelivery(token: string, trackingNumber: number) {
     })
 }
 
+
+interface UpdateDeliveryRequest {
+    lastKnownLocation: string;
+    delivered: boolean;
+}
+
 export function updateDelivery(token: string, trackingNumber: number, updateDeliveryRequest: UpdateDeliveryRequest): Promise<IDeliveryEvent> {
     return new Promise((resolve, reject) => {
 
@@ -196,12 +202,39 @@ export function updateDelivery(token: string, trackingNumber: number, updateDeli
                 newEvent.save()
                 projection.save()
 
+                // Si el nuevo estado es DELIVERED o RETURNED, se notifica
+                if ([DeliveryEventStatusEnum.DELIVERED, DeliveryEventStatusEnum.RETURNED].includes(newEvent.eventType))
+                    sendNotification({
+                        notificationType: newEvent.eventType === DeliveryEventStatusEnum.DELIVERED ? "delivery_delivered" : "delivery_returned",
+                        trackingNumber: trackingNumber,
+                        userId: projection.userId
+                    })
+
                 resolve(newEvent)
             }).catch(err => {
                 reject(err)
             })
+        });
+    });
+}
 
+export function getDelivery(token: string, userId: string, isAdmin: boolean = false, trackingNumber: number): Promise<IDeliveryProjection> {
+    return new Promise((resolve, reject) => {
+        DeliveryProjection.findOne({
+            trackingNumber: trackingNumber
+        }, function (err: any, projection: IDeliveryProjection) {
+            if (err) reject(err)
 
+            if (!projection)
+                projectDelivery(token, trackingNumber)
+                    .then(projection => {
+                        if (projection.userId !== userId && !isAdmin) 
+                            reject(error.newError(error.ERROR_FORBIDDEN, `El envío ${trackingNumber} no le pertenece.`))
+                        resolve(projection)
+                    })
+                    .catch(err => reject(err))
+            else
+                resolve(projection)
         });
     });
 }
@@ -213,24 +246,6 @@ export function currentCart(userId: string): Promise<ICart> {
             enabled: true
         }, function (err: any, cart: ICart) {
             if (err) return reject(err);
-
-            // if (!cart) {
-            //     const result = new Cart();
-            //     result.userId = userId;
-            //     result.save(function (err: any) {
-            //         if (err) return reject(err);
-            //         resolve(result);
-            //     });
-            // } else {
-            //     new Promise((result, reject) => {
-            //         cart.articles.forEach(article => {
-            //             if (!article.validated) {
-            //                 sendArticleValidation(cart._id, article.articleId).then();
-            //             }
-            //         });
-            //     }).catch(err => console.log(err));
-            //     resolve(cart);
-            // }
         });
     });
 }
