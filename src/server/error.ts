@@ -17,6 +17,11 @@ export class ValidationErrorMessage {
   code?: number;
   error?: string;
   messages?: ValidationErrorItem[];
+  constructor(err: { code?: number, error?: string, messages?: ValidationErrorItem[] }) {
+    this.code = err.code;
+    this.error = err.error;
+    this.messages = err.messages
+  }
 }
 
 export function newArgumentError(argument: string, err: string): ValidationErrorMessage {
@@ -29,7 +34,7 @@ export function newArgumentError(argument: string, err: string): ValidationError
 }
 
 export function newError(code: number, err: string): ValidationErrorMessage {
-  return { code: code, error: err };
+  return new ValidationErrorMessage({ code: code, error: err });
 }
 
 /**
@@ -64,7 +69,7 @@ export function handle(res: express.Response, err: any): express.Response {
     if (err.code) {
       res.status(err.code);
     }
-    return res.send({ error: err.error, messages: err.messages });
+    return res.send({ code: err.code, error: err.error, messages: err.messages });
   } else if (err.code) {
     // Error de Mongo
     return res.send(sendMongoose(res, err));
@@ -121,10 +126,10 @@ function sendMongoose(res: express.Response, err: any): ValidationErrorMessage {
         };
       default:
         res.status(ERROR_BAD_REQUEST);
-        return err ;
+        return err;
     }
   } catch (ex) {
     res.status(ERROR_INTERNAL_ERROR);
-    return  err ;
+    return err;
   }
 }

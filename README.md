@@ -92,8 +92,8 @@ graph TD;
 >	4. Se registra el nuevo evento cambiando el estado a **"PENDING_RETURN"**.
 >	5. Se envía un mensaje por medio del exchange directo ***"send_notification"***, con tipo *delivery_pending_return*, para que el servicio de notification realice la notificación.
 > - **Caminos alternativos**:
-> 	- Si el envío no existe o no le pertenece al usuario, se retorna error.
-> 	- Si la proyección del envío no está en estado **"DELIVERED"**, se retorna error.
+> 	- Si el envío no existe o no le pertenece al usuario, se retorna error indicando "El envío no le pertenece" o "El envío solicitado no existe.".
+> 	- Si la proyección del envío no está en estado **"DELIVERED"**, se retorna error indicando "No se puede solicitar la devolución para un envío que no fue entregado" .
 ---
 >### CU-006: Calcular la proyección del envío.
 > ---
@@ -332,6 +332,7 @@ graph TD;
 > | http code     | content-type                      | response                                                            |
 > |---------------|-----------------------------------|---------------------------------------------------------------------|
 > | `200`         | `application/json`       | `{"message":"Se inició el proceso de devolución existósamente."}`                               |
+> | `403`         | `application/json`                | `{"code": 403, "error": "El envío no le pertenece."}`                            |
 > | `404`         | `application/json`                | `{"code":"404","message":"El envío solicitado no existe."}`                            |
 ##### Example cURL
 

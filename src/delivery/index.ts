@@ -13,7 +13,8 @@ export {
     updateDelivery,
     getOrderInfo,
     getDelivery,
-    cancelDelivery
+    cancelDelivery,
+    returnDelivery
 } from "./delivery"
 
 export {

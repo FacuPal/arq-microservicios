@@ -143,10 +143,17 @@ function cancelDelivery(req: ICancelDeliveryRequest, res: express.Response) {
     });
 }
 
-function returnDelivery(req: IUserSessionRequest, res: express.Response) {
-  cart.addArticle(req.user.user.id, req.body)
-    .then(cart => {
-      res.json(cart);
+interface IReturnDeliveryRequest extends IUserSessionRequest {
+  params: {
+    trackingNumber: string
+  }
+}
+function returnDelivery(req: IReturnDeliveryRequest, res: express.Response) {
+  cart.returnDelivery(req.user.token, req.user.user.id, parseInt(req.params.trackingNumber))
+    .then(() => {
+      res.json({
+        message: `Se solicitó la devolución de manera exitosa.`,
+      });
     })
     .catch(err => {
       error.handle(res, err);

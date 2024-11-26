@@ -65,7 +65,7 @@ export async function projectDelivery(token: string, trackingNumber: number) {
         trackingNumber
     }).sort("created").then(async (events) => {
         // Validamos que el envío exista
-        if (events.length === 0 )
+        if (events.length === 0)
             throw error.newError(error.ERROR_NOT_FOUND, `El envío solicitado no existe.`)
 
         const order = await getOrderInfo(events[0].orderId, token)
@@ -115,11 +115,11 @@ export async function projectDelivery(token: string, trackingNumber: number) {
                             throw inconsistentTransitionError(projection.status, event.eventType)
                         break;
                     case DeliveryEventStatusEnum.TRANSIT_RETURN:
-                        if (![DeliveryEventStatusEnum.TRANSIT_RETURN, DeliveryEventStatusEnum.RETURNED].includes(projection.status))
+                        if (![DeliveryEventStatusEnum.TRANSIT_RETURN, DeliveryEventStatusEnum.PENDING_RETURN].includes(projection.status))
                             throw inconsistentTransitionError(projection.status, event.eventType)
                         break;
                     case DeliveryEventStatusEnum.RETURNED:
-                        if (projection.status !== DeliveryEventStatusEnum.DELIVERED)
+                        if (projection.status !== DeliveryEventStatusEnum.TRANSIT_RETURN)
                             throw inconsistentTransitionError(projection.status, event.eventType)
                         break;
 
@@ -131,7 +131,6 @@ export async function projectDelivery(token: string, trackingNumber: number) {
                 projection.status = event.eventType;
                 projection.lastKnownLocation = event.lastKnownLocation;
                 projection.updated = event.updated
-
             }
             //Guardamos la proyección
             await projection.save()
@@ -197,6 +196,7 @@ export function updateDelivery(token: string, trackingNumber: number, updateDeli
 
                 //Se actualiza el estado de la proyección
                 projection.status = newEvent.eventType;
+                projection.lastKnownLocation = newEvent.lastKnownLocation;
 
                 //Se guarda el nuevo evento y la proyección
                 newEvent.save()
@@ -228,7 +228,7 @@ export function getDelivery(token: string, userId: string, isAdmin: boolean = fa
             if (!projection)
                 projectDelivery(token, trackingNumber)
                     .then(projection => {
-                        if (projection.userId !== userId && !isAdmin) 
+                        if (projection.userId !== userId && !isAdmin)
                             reject(error.newError(error.ERROR_FORBIDDEN, `El envío ${trackingNumber} no le pertenece.`))
                         resolve(projection)
                     })
@@ -244,7 +244,7 @@ export function cancelDelivery(token: string, trackingNumber: number): Promise<v
         projectDelivery(token, trackingNumber).then(projection => {
             if (projection.status !== DeliveryEventStatusEnum.TRANSIT)
                 return reject(error.newError(error.ERROR_INTERNAL_ERROR, `No se puede cancelar un envío que no está en tránsito.`))
-            
+
             //Creamos el nuevo evento
             const newEvent = new DeliveryEvent({
                 orderId: projection.orderId,
@@ -261,179 +261,51 @@ export function cancelDelivery(token: string, trackingNumber: number): Promise<v
                 });
                 projection.save()
             })
+
+            sendNotification({
+                notificationType: "delivery_canceled",
+                trackingNumber: trackingNumber,
+                userId: projection.userId
+            })
+
             resolve(newEvent)
         }).catch(err => reject(err))
     });
 }
 
-export function currentCart(userId: string): Promise<ICart> {
+export function returnDelivery(token: string, userId: string, trackingNumber: number): Promise<void> {
     return new Promise((resolve, reject) => {
-        Cart.findOne({
-            userId: userId,
-            enabled: true
-        }, function (err: any, cart: ICart) {
-            if (err) return reject(err);
-        });
-    });
-}
+        projectDelivery(token, trackingNumber).then(projection => {
+            if (projection.userId !== userId)
+                return reject(error.newError(error.ERROR_FORBIDDEN, `El envío no le pertenece.`))
+            if (projection.status !== DeliveryEventStatusEnum.DELIVERED)
+                return reject(error.newError(error.ERROR_INTERNAL_ERROR, `No se puede solicitar la devolución para un envío que no fue entregado.`))
 
-interface AddArticleRequest {
-    articleId?: string;
-    quantity?: number;
-}
-export async function addArticle(userId: string, body: AddArticleRequest): Promise<ICart> {
-    try {
-        body = await validateAddArticle(body);
-        const cart = await currentCart(userId);
-        const article: ICartArticle = {
-            articleId: body.articleId,
-            quantity: body.quantity
-        };
+            //Creamos el nuevo evento
+            const newEvent = new DeliveryEvent({
+                orderId: projection.orderId,
+                trackingNumber: trackingNumber,
+                eventType: DeliveryEventStatusEnum.PENDING_RETURN,
+                created: new Date()
+            }).save().then(event => {
+                //Actualizamos la proyección
+                projection.status = event.eventType;
+                projection.trackingEvents.push({
+                    eventType: event.eventType,
+                    locationName: event.lastKnownLocation,
+                    updateDate: event.created
+                });
+                projection.save()
+            })
 
-        cart.addArticle(article);
+            sendNotification({
+                notificationType: "delivery_pending_return",
+                trackingNumber: trackingNumber,
+                userId: projection.userId
+            })
 
-        // Save the Cart
-        return new Promise<ICart>((resolve, reject) => {
-            cart.save(function (err: any) {
-                if (err) return reject(err);
-
-                resolve(cart);
-            });
-        });
-    } catch (err) {
-        return Promise.reject(err);
-    }
-}
-
-export async function decrementArticle(userId: string, body: AddArticleRequest): Promise<ICart> {
-    try {
-        body = await validateAddArticle(body);
-        const cart = await currentCart(userId);
-        const article: ICartArticle = {
-            articleId: body.articleId,
-            quantity: body.quantity
-        };
-
-        cart.decrementArticle(article);
-
-        // Save the Cart
-        return new Promise<ICart>((resolve, reject) => {
-            cart.save(function (err: any) {
-                if (err) return reject(err);
-
-                resolve(cart);
-            });
-        });
-    } catch (err) {
-        return Promise.reject(err);
-    }
-}
-
-function validateAddArticle(body: AddArticleRequest): Promise<AddArticleRequest> {
-    const result: error.ValidationErrorMessage = {
-        messages: []
-    };
-
-    if (!body.articleId) {
-        result.messages.push({ path: "articleId", message: "No puede quedar vacío." });
-    }
-
-    if (!body.quantity || body.quantity <= 0) {
-        result.messages.push({ path: "quantity", message: "Debe se numérico." });
-    }
-
-    if (result.messages.length > 0) {
-        return Promise.reject(result);
-    }
-    return Promise.resolve(body);
-}
-
-export async function deleteArticle(userId: string, articleId: string): Promise<void> {
-    try {
-        const cart = await currentCart(userId);
-
-        cart.removeArticle(articleId);
-
-        // Save the Cart
-        return new Promise<void>((resolve, reject) => {
-            cart.save(function (err: any) {
-                if (err) return reject(err);
-
-                resolve();
-            });
-        });
-    } catch (err) {
-        return Promise.reject(err);
-    }
-}
-
-/**
- * Esta validación es muy cara porque valida todo contra otros servicios en forma síncrona.
- */
-interface Article {
-    "_id": string;
-    "name": string;
-    "price": number;
-    "stock": number;
-    "enabled": boolean;
-}
-export function validateCheckout(userId: string, token: string): Promise<ICartValidation> {
-    return new Promise((resolve, reject) => {
-        currentCart(userId)
-            .then(cart => {
-                async.map(cart.articles,
-                    (article: ICartArticle, callback) => {
-                        const restClient: RestClient = new RestClient("GetArticle", conf.catalogServer);
-                        restClient.get<any>("/v1/articles/" + article.articleId,
-                            { additionalHeaders: { "Authorization": token } }).then(
-                                (data) => {
-                                    callback(undefined, data.result as Article);
-                                }
-                            ).catch(
-                                (exception) => {
-                                    callback(undefined, { "id": undefined });
-                                }
-                            );
-                    },
-                    (err, results: Article[]) => {
-                        if (err) {
-                            return reject(err);
-                        }
-
-                        const validation: ICartValidation = {
-                            errors: [],
-                            warnings: []
-                        };
-
-                        cart.articles.map((article) => {
-                            return {
-                                article: article,
-                                result: results.find(element => element._id == article.articleId)
-                            };
-                        }).forEach(element => {
-                            if (!element.result) {
-                                validation.errors.push({
-                                    articleId: element.article.articleId,
-                                    message: "No se encuentra"
-                                });
-                            } else if (!element.result.enabled) {
-                                validation.errors.push({
-                                    articleId: element.article.articleId,
-                                    message: "Articulo inválido"
-                                });
-                            } else {
-                                if (element.result.stock < element.article.quantity) {
-                                    validation.warnings.push({
-                                        articleId: element.article.articleId,
-                                        message: "Insuficiente stock"
-                                    });
-                                }
-                            }
-                        });
-
-                        resolve(validation);
-                    });
-            }).catch(err => reject(err));
+            resolve(newEvent)
+        }).catch(err => reject(err))
     });
 }
 
@@ -452,22 +324,22 @@ export function validateCheckout(userId: string, token: string): Promise<ICartVa
  */
 export function placeOrder(userId: string): Promise<void> {
     return new Promise((resolve, reject) => {
-        currentCart(userId)
-            .then(cart => {
-                if (cart.articles.length == 0) {
-                    reject(error.newError(
-                        400,
-                        "No posee items"
-                    ));
-                }
-                cart.enabled = false;
-                // Save the Cart
-                cart.save(function (err: any) {
-                    if (err) return reject(err);
+        // currentCart(userId)
+        //     .then(cart => {
+        //         if (cart.articles.length == 0) {
+        //             reject(error.newError(
+        //                 400,
+        //                 "No posee items"
+        //             ));
+        //         }
+        //         cart.enabled = false;
+        //         // Save the Cart
+        //         cart.save(function (err: any) {
+        //             if (err) return reject(err);
 
-                    // sendPlaceOrder(cart);
-                    resolve();
-                });
-            }).catch(err => reject(err));
+        //             // sendPlaceOrder(cart);
+        //             resolve();
+        //         });
+        //     }).catch(err => reject(err));
     });
 }
