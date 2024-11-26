@@ -63,6 +63,18 @@ export function newError(code: number, err: string): ValidationErrorMessage {
  *     }
  *
  */
+
+/**
+ * @apiDefine DeliveryNotFound
+ *
+ * @apiErrorExample 404 Not Found
+ *     HTTP/1.1 404 Not Found
+ *     {
+ *        "code": "404",
+ *        "message" : "El envío solicitado no existe."
+ *     }
+ *
+ */
 export function handle(res: express.Response, err: any): express.Response {
   if (err instanceof ValidationErrorMessage) {
     // ValidationErrorMessage

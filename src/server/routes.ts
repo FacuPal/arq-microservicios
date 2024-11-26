@@ -6,14 +6,13 @@ import * as delivery from "../delivery";
 import * as error from "./error";
 import * as express from "express";
 import { NextFunction } from "connect";
-import { DeliveryEventStatusEnum } from "../enums/status.enum";
 
 /**
  * Modulo de seguridad, login/logout, cambio de contraseñas, etc
  */
 export function init(app: Express) {
   //Autenticamos todos los endpoints
-  app.use(validateToken);
+  // app.use(validateToken);
   // Listar los envíos del sistema (Admin)
   app.route("/v1/delivery").get(listDeliveries);
   // Obtener ubicación del envío
@@ -62,7 +61,11 @@ function validateToken(req: IUserSessionRequest, res: express.Response, next: Ne
  *    Authorization=bearer {token}
  *
  * @apiErrorExample 403 Forbidden
- *    HTTP/1.1 403 Forbidden
+ *     HTTP/1.1 403 Forbidden
+ *     {
+ *        "code": 403
+ *        "message" : { motivo }
+ *     }
  */
 function validateAdminAccess(req: IUserSessionRequest, res: express.Response, next: NextFunction) {
   //Validamos que sea admin
@@ -71,6 +74,44 @@ function validateAdminAccess(req: IUserSessionRequest, res: express.Response, ne
   next()
 }
 
+
+
+/**
+ * @api {get} /v1/delivery Listar los Envíos
+ * @apiName Listar Envíos
+ * @apiGroup Envíos
+ *
+ * @apiDescription Lista los envíos del sistema
+ * 
+ * @apiQuery {Date} [startDate] Fecha desde a buscar. Se compara contra el created_date
+ * @apiQuery {Date} [endDate] Fecha hasta a buscar. Se compara contra el created_date
+ * @apiQuery {String} [status] Estado a filtrar. Puede ser alguno de ["PENDING", "TRANSIT", "CANCELED", "DELIVERED", "PENDING_RETURN", "TRANSIT_RETURN", "RETURNED"]
+ * @apiQuery {Number} [page=1] Número de página a devolver.
+ *
+ *
+ * @apiSuccessExample {json} Body
+ *  {
+ *     "data": [
+ *         {
+ *             "trackingNumber": 5,
+ *             "status": "PENDING",
+ *             "lastKnownLocation": null,
+ *             "created": "2024-11-26T12:30:15.091Z"
+ *         },
+ *         {
+ *             "trackingNumber": 1,
+ *             "status": "TRANSIT_RETURN",
+ *             "lastKnownLocation": "Agencia BSAS",
+ *             "created": "2024-11-20T01:04:12.419Z"
+ *         }
+ *     ],
+ *     "page": "1"
+ *  }
+ * @apiUse AuthHeader
+ * @apiUse AdminAccess
+ * @apiUse ParamValidationErrors
+ * @apiUse OtherErrors
+ */
 interface IListDeliveriesRequest extends IUserSessionRequest {
   query: {
     status?: string,
@@ -100,6 +141,44 @@ function listDeliveries(req: IListDeliveriesRequest, res: express.Response) {
 }
 
 
+/**
+ * @api {get} /v1/delivery/:trackingNumber Obtener ubicación del envío
+ * @apiName Consultar Envío
+ * @apiGroup Envíos
+ *
+ * @apiDescription Obtiene la ubicación de un envío
+ * 
+ * @apiParam {Number} trackingNumber trackingNumber a consultar.
+ *
+ * @apiSuccessExample {json} Body
+ *  {
+ *  	"orderId":"1234", 
+ *  	"trackingNumber": 1234,
+ *  	"status": "TRANSIT", 
+ *  	"lastKnowLocation": "Agencia 1", 
+ *  	"deliveryEvents": [{ 
+ *  		"updateDate": "2024-11-10", 
+ *  		"lastKnownLocation": "Agencia 1", 
+ *  		"eventType": "TRANSIT"
+ *  	}, { 
+ *  		"updateDate": "2024-11-09", 
+ *  		"lastKnownLocation": "Depósito", 
+ *  		"eventType": "PENDING"
+ *  	}] 
+ *  }
+ * 
+ * @apiErrorExample 403 Forbidden
+ *     HTTP/1.1 403 Forbidden
+ *     { 
+ *        "code": "403",
+ *        "message" : "El envío ${trackingNumber} no le pertenece."
+ *     }
+ * 
+ * @apiUse AuthHeader
+ * @apiUse ParamValidationErrors
+ * @apiUse DeliveryNotFound
+ * @apiUse OtherErrors
+ */
 interface IGetDeliveryRequest extends IUserSessionRequest {
   params: {
     trackingNumber: string
@@ -120,6 +199,33 @@ function getDelivery(req: IGetDeliveryRequest, res: express.Response) {
     });
 }
 
+
+/**
+ * @api {put} /v1/delivery/:trackingNumber Actualizar ubicación del envío
+ * @apiName Actualizar Envío
+ * @apiGroup Envíos
+ *
+ * @apiDescription Actualiza la ubicación de un envío
+ * 
+ * @apiParam {Number} trackingNumber trackingNumber a actualizar.
+ *
+ * @apiBody {json} Body 
+ * {
+ *  "lastKnownLocation": "Ubicacion"
+ *  "delivered": false | true
+ * }
+ * 
+ * @apiSuccessExample {json} Body
+ *  {
+ *	  "message": "Ubicación actualizada exitósamente."
+ *  }
+ * 
+ * @apiUse AuthHeader
+ * @apiUse AdminAccess
+ * @apiUse ParamValidationErrors
+ * @apiUse DeliveryNotFound
+ * @apiUse OtherErrors
+ */
 interface IUpdateDeliveryRequest extends IUserSessionRequest {
   params: {
     trackingNumber: string
@@ -130,7 +236,6 @@ interface IUpdateDeliveryRequest extends IUserSessionRequest {
   }
 }
 function updateDelivery(req: IUpdateDeliveryRequest, res: express.Response) {
-  //Llamamos al actualizar envío
   delivery.updateDelivery(req.user.token, parseInt(req.params.trackingNumber), req.body)
     .then(() => {
       res.json({
@@ -141,6 +246,27 @@ function updateDelivery(req: IUpdateDeliveryRequest, res: express.Response) {
       error.handle(res, err);
     });
 }
+
+
+/**
+ * @api {delete} /v1/delivery/:trackingNumber Cancelar un envío
+ * @apiName Cancelar Envío
+ * @apiGroup Envíos
+ *
+ * @apiDescription Solicita la cancelación de un envío.
+ * 
+ * @apiParam {Number} trackingNumber trackingNumber a cancelar.
+ * 
+ * @apiSuccessExample {json} Body
+ *  {
+ *	  "message": "Envío cancelado exitósamente."
+ *  }
+ * @apiUse AuthHeader
+ * @apiUse AdminAccess
+ * @apiUse ParamValidationErrors
+ * @apiUse DeliveryNotFound
+ * @apiUse OtherErrors
+ */
 
 interface ICancelDeliveryRequest extends IUserSessionRequest {
   params: {
@@ -159,6 +285,32 @@ function cancelDelivery(req: ICancelDeliveryRequest, res: express.Response) {
     });
 }
 
+/**
+ * @api {post} /v1/delivery/:trackingNumber/return Solicitar devolver un Envío
+ * @apiName Devolver Envío
+ * @apiGroup Envíos
+ *
+ * @apiDescription Solicita la devolución de un envío.
+ * 
+ * @apiParam {Number} trackingNumber trackingNumber a devolver.
+ * 
+ * @apiSuccessExample {json} Body
+ *  {
+ *	  "message": "Se inició el proceso de devolución existósamente."
+ *  }
+ * 
+ * @apiErrorExample 403 Forbidden
+ *     HTTP/1.1 403 Forbidden
+ *     { 
+ *        "code": "403",
+ *        "message" : "El envío ${trackingNumber} no le pertenece."
+ *     }
+ * 
+ * @apiUse AuthHeader
+ * @apiUse ParamValidationErrors
+ * @apiUse DeliveryNotFound
+ * @apiUse OtherErrors
+ */
 interface IReturnDeliveryRequest extends IUserSessionRequest {
   params: {
     trackingNumber: string
@@ -176,6 +328,40 @@ function returnDelivery(req: IReturnDeliveryRequest, res: express.Response) {
     });
 }
 
+
+/**
+ * @api {post} /v1/delivery/:trackingNumber/project Solicitar devolver un Envío
+ * @apiName Devolver Envío
+ * @apiGroup Envíos
+ *
+ * @apiDescription Solicita la devolución de un envío.
+ * 
+ * @apiParam {Number} trackingNumber trackingNumber a devolver.
+ * 
+ * @apiSuccessExample {json} Body
+ *  {
+ *  	"orderId":"1234", 
+ *  	"trackingNumber": 1234,
+ *  	"status": "TRANSIT", 
+ *  	"lastKnowLocation": "Agencia 1", 
+ *  	"deliveryEvents": [{ 
+ *  		"updateDate": "2024-11-10", 
+ *  		"lastKnownLocation": "Agencia 1", 
+ *  		"eventType": "TRANSIT"
+ *  	}, { 
+ *  		"updateDate": "2024-11-09", 
+ *  		"lastKnownLocation": "Depósito", 
+ *  		"eventType": "PENDING"
+ *  	}] 
+ *  }
+ * 
+ * 
+ * @apiUse AuthHeader
+ * @apiUse AdminAccess
+ * @apiUse ParamValidationErrors
+ * @apiUse DeliveryNotFound
+ * @apiUse OtherErrors
+ */
 interface IProjectDeliveryRequest extends IUserSessionRequest {
   params: {
     trackingNumber: string
@@ -190,225 +376,3 @@ function projectDelivery(req: IProjectDeliveryRequest, res: express.Response) {
       error.handle(res, err);
     });
 }
-
-
-
-/**
- * @api {post} /v1/delivery/article Agregar Artículo
- * @apiName Agregar Artículo
- * @apiGroup Carrito
- *
- * @apiDescription Agregar artículos al carrito.
- *
- * @apiExample {json} Body
- *    {
- *      "articleId": "{Article Id}",
- *      "quantity": {Quantity to add}
- *    }
- *
- * @apiSuccessExample {json} Body
- *    {
- *      "userId": "{User Id}",
- *      "enabled": true|false,
- *      "id": "{Id de carrito}",
- *      "articles": [{Artículos}],
- *      "updated": "{Fecha ultima actualización}",
- *      "created": "{Fecha creado}"
- *    }
- *
- * @apiUse ParamValidationErrors
- * @apiUse OtherErrors
- */
-// function addArticle(req: IUserSessionRequest, res: express.Response) {
-//   delivery.addArticle(req.user.user.id, req.body)
-//     .then(delivery => {
-//       res.json(delivery);
-//     })
-//     .catch(err => {
-//       error.handle(res, err);
-//     });
-// }
-
-/**
- * @api {post} /v1/delivery/article/:articleId/decrement Decrementar
- * @apiName Decrementar delivery
- * @apiGroup Carrito
- *
- * @apiDescription Decrementa la cantidad de artículos en el delivery.
- *
- * @apiSuccessExample {json} Body
- *    {
- *      "articleId": "{Article Id}",
- *      "quantity": {articles to decrement}
- *    }
- *
- * @apiSuccessExample {json} Body
- *    {
- *      "userId": "{User Id}",
- *      "enabled": true|false,
- *      "_id": "{Id de carrito}",
- *      "articles": [{Artículos}],
- *      "updated": "{Fecha ultima actualización}",
- *      "created": "{Fecha creado}"
- *    }
- *
- * @apiUse ParamValidationErrors
- * @apiUse OtherErrors
- */
-// function decrementArticle(req: IUserSessionRequest, res: express.Response) {
-//   delivery.decrementArticle(req.user.user.id, req.body)
-//     .then(delivery => {
-//       res.json(delivery);
-//     })
-//     .catch(err => {
-//       error.handle(res, err);
-//     });
-// }
-
-/**
- * @api {post} /v1/delivery/article/:articleId/increment Incrementar
- * @apiName Incrementar delivery
- * @apiGroup Carrito
- *
- * @apiDescription Incrementa la cantidad de artículos en el delivery.
- *
- * @apiSuccessExample {json} Body
- *    {
- *      "articleId": "{Article Id}",
- *      "quantity": {articles to increment},
- *      "validated": True|False Determina si el articulo se valido en catalog
- *    }
- *
- * @apiSuccessExample {json} Body
- *    {
- *      "userId": "{User Id}",
- *      "enabled": true|false,
- *      "_id": "{Id de carrito}",
- *      "articles": [{Artículos}],
- *      "updated": "{Fecha ultima actualización}",
- *      "created": "{Fecha creado}"
- *    }
- *
- * @apiUse ParamValidationErrors
- * @apiUse OtherErrors
- */
-// function incrementArticle(req: IUserSessionRequest, res: express.Response) {
-//   delivery.addArticle(req.user.user.id, req.body)
-//     .then(delivery => {
-//       res.json(delivery);
-//     })
-//     .catch(err => {
-//       error.handle(res, err);
-//     });
-// }
-
-/**
- * @api {get} /v1/delivery Obtener Carrito
- * @apiName Obtener Carrito
- * @apiGroup Carrito
- *
- * @apiDescription Devuelve el carrito activo.
- *
- * @apiSuccessExample {json} Body
- *    {
- *      "userId": "{User Id}",
- *      "enabled": true|false,
- *      "_id": "{Id de carrito}",
- *      "articles": [{Artículos}],
- *      "updated": "{Fecha ultima actualización}",
- *      "created": "{Fecha creado}"
- *    }
- *
- * @apiUse ParamValidationErrors
- * @apiUse OtherErrors
- */
-// function getdelivery(req: IUserSessionRequest, res: express.Response) {
-//   delivery.currentdelivery(req.user.user.id)
-//     .then(delivery => {
-//       res.json(delivery);
-//     })
-//     .catch(err => {
-//       error.handle(res, err);
-//     });
-// }
-
-/**
- * @api {delete} /delivery/article/:articleId Quitar Artículo
- * @apiName Quitar Artículo
- * @apiGroup Carrito
- *
- * @apiDescription Eliminar un articulo del carrito.
- *
- * @apiSuccessExample {string} Body
- *    HTTP/1.1 200 Ok
- *
- * @apiUse ParamValidationErrors
- * @apiUse OtherErrors
- */
-// function deleteArticle(req: IUserSessionRequest, res: express.Response) {
-//   const articleId = escape(req.params.articleId);
-
-//   delivery.deleteArticle(req.user.user.id, articleId)
-//     .then(_ => {
-//       res.send();
-//     })
-//     .catch(err => {
-//       error.handle(res, err);
-//     });
-// }
-
-/**
- * @api {post} /v1/delivery/validate Validar Carrito
- * @apiName Validar Carrito
- * @apiGroup Carrito
- *
- * @apiDescription Realiza una validación completa del delivery, para realizar el checkout.
- *
- * @apiSuccessExample {json} Body
- *   {
- *      "errors": [
- *          {  "articleId": "{Article}",
- *             "message" : "{Error message}"
- *          }, ...],
- *      "warnings": [
- *          {  "articleId": "{Article}",
- *             "message" : "{Error message}"
- *          }, ...]
- *    }
- *
- * @apiUse ParamValidationErrors
- * @apiUse OtherErrors
- */
-// function validateCheckout(req: IUserSessionRequest, res: express.Response) {
-//   delivery.validateCheckout(req.user.user.id, req.user.token)
-//     .then(validation => {
-//       res.json(validation);
-//     })
-//     .catch(err => {
-//       error.handle(res, err);
-//     });
-// }
-
-
-/**
- * @api {post} /v1/delivery/checkout Checkout
- * @apiName Checkout
- * @apiGroup Carrito
- *
- * @apiDescription Realiza el checkout del carrito.
- *
- * @apiSuccessExample {string} Body
- *    HTTP/1.1 200 Ok
- *
- * @apiUse ParamValidationErrors
- * @apiUse OtherErrors
- */
-// function postOrder(req: IUserSessionRequest, res: express.Response) {
-//   delivery.placeOrder(req.user.user.id)
-//     .then(_ => {
-//       res.send();
-//     })
-//     .catch(err => {
-//       error.handle(res, err);
-//     });
-// }

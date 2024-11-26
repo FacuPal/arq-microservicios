@@ -42,10 +42,10 @@ export function init(appConfig: Config): express.Express {
 
   // Esta es la ruta de contenidos estáticos, no deberían haber muchos pero algo de documentación
   // vendría bien como contenido estático.
-  app.use(
-    express.static(path.join(__dirname, "../public"), { maxAge: 31557600000 })
+  app.use('/docs',
+    express.static(path.join(__dirname, "../../docs"), { maxAge: 31557600000 })
   );
-  app.get("/", (req, res, next) => { res.redirect("index.html"); });
+  app.get("/", (req, res, next) => { res.redirect("/docs/index.html"); });
 
   // Iniciamos las rutas del directorio
   // mas sobre rutas http://expressjs.com/es/guide/routing.html
