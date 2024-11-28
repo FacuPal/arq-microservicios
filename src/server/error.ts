@@ -59,7 +59,7 @@ export function newError(code: number, err: string): ValidationErrorMessage {
  * @apiErrorExample 500 Server Error
  *     HTTP/1.1 500 Internal Server Error
  *     {
- *        "error" : "Not Found"
+ *        "error" : "{{Motivo del error}}
  *     }
  *
  */
