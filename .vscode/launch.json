@@ -1,0 +1,16 @@
+{
+    "configurations": [
+        
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Debug",
+            "program": "${workspaceFolder}/src/server.ts",
+            "runtimeExecutable": "${workspaceFolder}/node_modules/.bin/ts-node",
+            "runtimeArgs": [
+                // "--nolazy"
+            ],
+            "envFile": "${workspaceFolder}/.env",
+        }
+    ]
+}
