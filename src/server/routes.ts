@@ -12,9 +12,9 @@ import { NextFunction } from "connect";
  */
 export function init(app: Express) {
   //Autenticamos todos los endpoints
-  // app.use(validateToken);
+  app.use(validateToken);
   // Listar los envíos del sistema (Admin)
-  app.route("/v1/delivery").get(listDeliveries);
+  app.route("/v1/delivery").get(validateAdminAccess, listDeliveries);
   // Obtener ubicación del envío
   app.route("/v1/delivery/:trackingNumber").get(getDelivery);
   //Actualizar la ubicación del envío
