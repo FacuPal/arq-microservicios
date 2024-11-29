@@ -7,25 +7,6 @@ import { DeliveryEventStatusEnum } from "../enums/status.enum";
 
 const conf = env.getConfig(process.env);
 
-export interface ICartArticle {
-  articleId: string;
-  quantity: number;
-  validated?: Boolean;
-}
-
-export interface ICart extends Document {
-  userId: string;
-  orderId: string;
-  articles: ICartArticle[];
-  updated: Date;
-  created: Date;
-  enabled: Boolean;
-  addArticle: Function;
-  removeArticle: Function;
-  incrementArticle: Function;
-  decrementArticle: Function;
-}
-
 export interface ITrackingEvent {
   eventType: string; //[PENDING, TRANSIT, CANCELED, DELIVERED, PENDING_RETURN, TRANSIT_RETURN, RETURNED]
   locationName: string;
